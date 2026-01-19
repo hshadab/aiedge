@@ -1,0 +1,37 @@
+{
+  "name": "default_spending_policy",
+  "version": "1.0",
+  "rules": [
+    {
+      "category": "data_api",
+      "max_amount_cents": 500,
+      "requires_approval": false,
+      "allowed": true
+    },
+    {
+      "category": "compute",
+      "max_amount_cents": 1000,
+      "requires_approval": false,
+      "allowed": true
+    },
+    {
+      "category": "storage",
+      "max_amount_cents": 200,
+      "requires_approval": false,
+      "allowed": true
+    },
+    {
+      "category": "priority",
+      "max_amount_cents": 2000,
+      "requires_approval": true,
+      "allowed": true
+    },
+    {
+      "category": "blocked",
+      "max_amount_cents": 0,
+      "requires_approval": false,
+      "allowed": false
+    }
+  ],
+  "default_action": "deny"
+}

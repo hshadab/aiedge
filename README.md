@@ -84,6 +84,117 @@ cargo run --release --example mediapipe_mlp_proof
 
 **Technical note**: The model dimensions are padded to powers of 2 (required by JOLT's lookup tables), and the output is padded from 2 classes to 8 to meet these requirements.
 
+### Enterprise Agentic Spending Guardrails
+
+Cryptographic policy enforcement for B2B AI agents. This demo shows how to extend [Google AI Edge function calling](https://ai.google.dev/edge/mediapipe/solutions/genai/function_calling) with zero-knowledge spending guardrails.
+
+```bash
+# First, build the spending classifier model
+python3 scripts/build_spending_classifier.py
+
+# Run the demo
+cargo run --release --example agentic_spending_guardrails
+```
+
+#### The Problem
+
+Enterprise AI agents (procurement bots, fleet robots, supply chain AI) need to autonomously purchase cloud resources, API credits, and vendor services. But how do you ensure they follow corporate spending policies without trusting the AI?
+
+#### The Solution: ZKML Spending Proofs
+
+Every spending decision generates a cryptographic proof that:
+1. The intent was correctly classified by an approved ML model
+2. The spend complies with corporate procurement policy
+3. Any auditor can verify without re-running the model
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    B2B AGENT SPENDING FLOW                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  On-Device LLM         ZKML Classifier        Policy Engine      │
+│  (Gemma/LiteRT)        (this demo)            (this demo)        │
+│  ───────────────       ────────────────       ──────────────     │
+│                                                                  │
+│  Agent emits:          Classifies intent:     Checks compliance: │
+│  purchase_api_credits  → "data_services"      → Category allowed │
+│  vendor: clearbit      → Proof generated      → Under budget     │
+│  amount: $150                                 → Vendor approved   │
+│                                                                  │
+│           Only if BOTH proofs verify → Payment executes          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Spending Categories
+
+| Category | Description | Per-Transaction Limit |
+|----------|-------------|----------------------|
+| `data_services` | API subscriptions, market data feeds | $500 |
+| `cloud_compute` | GPU/CPU rental, inference endpoints | $1,000 |
+| `logistics_data` | Route optimization, fleet APIs | $250 |
+| `saas_licenses` | Enterprise software subscriptions | $2,000 |
+| `blocked` | Unauthorized procurement | $0 (always denied) |
+
+#### Sample B2B Spending Receipt
+
+```json
+{
+  "receipt_id": "rcpt_188c3f3d88d24ea5",
+  "organization_id": "org_acme_corp",
+  "agent_id": "agent_fleet_001",
+  "function_call": {
+    "function_name": "purchase_api_credits",
+    "vendor_id": "vendor:clearbit_api",
+    "amount_cents": 15000,
+    "cost_center": "CC-4521-SALES"
+  },
+  "zkml_classification": {
+    "category": "data_services",
+    "proof_verified": true
+  },
+  "policy_evaluation": {
+    "allowed": true,
+    "checks_passed": ["category_allowed", "category_limit", "vendor_approved", "monthly_budget"]
+  },
+  "payment_status": {
+    "authorized": true,
+    "payment_rail": "x402_usdc"
+  },
+  "proof_metadata": {
+    "proving_time_ms": 3447,
+    "verification_time_ms": 1433,
+    "proof_system": "jolt_dory"
+  }
+}
+```
+
+#### Enterprise Value Proposition
+
+**For Procurement/Finance:**
+- AI agents operate within pre-approved spending policies
+- Every transaction has cryptographic proof of compliance
+- Audit trail that can't be forged or disputed
+
+**For IT/Security:**
+- Classification model runs on-device (no data exfiltration)
+- Proofs verify without exposing model weights
+- Vendor allowlists enforced at cryptographic level
+
+**For Compliance/Legal:**
+- Every spending decision is auditable
+- Proofs provide non-repudiation
+- Policy enforcement is mathematically verifiable
+
+#### Integration with Google AI Edge & Agentic Commerce
+
+This demo is designed to integrate with:
+- [Google AI Edge Function Calling](https://ai.google.dev/edge/mediapipe/solutions/genai/function_calling) - On-device LLM emits structured function calls
+- [Google A2A Protocol](https://blog.google/products/ads-commerce/agentic-commerce-ai-tools-protocol-retailers-platforms/) - Agent-to-agent commerce
+- [x402 Payment Protocol](https://www.x402.org/) - Machine-to-machine payments with USDC
+- [SpendingProofs](https://www.spendingproofs.com/) - Cryptographic policy enforcement
+
+**The key insight**: Instead of trusting AI agent decisions, you VERIFY them cryptographically before releasing funds.
+
 ## Benchmarks
 
 ### Transformer (self-attention) profile
@@ -106,6 +217,15 @@ The prover hit a peak allocated footprint of roughly 5.6 GB during sumcheck roun
 | Verify | ~2.2 s |
 
 Model: Dense(16→16) → ReLU → Dense(16→8), proving sentiment classification on pre-computed word embeddings.
+
+### Enterprise Spending Guardrails
+
+| Stage  | Wall clock |
+| ------ | ----------- |
+| Prove  | ~3.5 s |
+| Verify | ~1.4 s |
+
+Model: Dense(16→16) → ReLU → Dense(16→8), classifying B2B procurement intents into spending categories.
 
 ### Cross-project snapshot
 

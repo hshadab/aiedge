@@ -1,0 +1,18 @@
+{
+  "categories": {
+    "0": "data_api",
+    "1": "compute",
+    "2": "storage",
+    "3": "priority",
+    "4": "blocked"
+  },
+  "limits_cents": {
+    "data_api": 500,
+    "compute": 1000,
+    "storage": 200,
+    "priority": 2000,
+    "blocked": 0
+  },
+  "num_categories": 5,
+  "padded_size": 8
+}
