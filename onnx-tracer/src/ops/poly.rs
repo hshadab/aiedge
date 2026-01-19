@@ -93,6 +93,7 @@ impl<F: TensorType + PartialOrd> From<&PolyOp<F>> for ONNXOpcode {
             PolyOp::Reshape(..) => ONNXOpcode::Reshape,
             PolyOp::Iff => ONNXOpcode::Select,
             PolyOp::MultiBroadcastTo { .. } => ONNXOpcode::Broadcast,
+            PolyOp::Identity => ONNXOpcode::Identity,
             _ => {
                 unimplemented!(
                     "ONNXOpcode::from not implemented for PolyOp variant {:?}",

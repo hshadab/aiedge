@@ -99,6 +99,30 @@ pub static EINSUM_REGISTRY: &[(&str, EinsumConfig)] = &[
             dims_extractor: extract_mk_kn_mn_dims,
         },
     ),
+    // Support for mk,kn->n when batch=1 (m is squeezed)
+    (
+        "mk,kn->n",
+        EinsumConfig {
+            equation: "mk,kn->mn",
+            dims_extractor: extract_mk_kn_n_dims,
+        },
+    ),
+    // Support for k,kn->mn when first operand is 1D vector (m=1 squeezed in input, unsqueezed in output)
+    (
+        "k,kn->mn",
+        EinsumConfig {
+            equation: "mk,kn->mn",
+            dims_extractor: extract_k_kn_mn_dims,
+        },
+    ),
+    // Support for k,kn->n when first operand is 1D vector
+    (
+        "k,kn->n",
+        EinsumConfig {
+            equation: "mk,kn->mn",
+            dims_extractor: extract_k_kn_n_dims,
+        },
+    ),
     (
         "k,nk->n",
         EinsumConfig {
@@ -173,6 +197,58 @@ fn extract_mk_kn_mn_dims(
     let k = b_instr.output_dims[0];
     let n = b_instr.output_dims[1];
 
+    (vec![m, k], vec![k, n], vec![m, n])
+}
+
+/// Dimension extraction for mk,kn->n pattern (batch=1 squeezed)
+fn extract_mk_kn_n_dims(
+    instr: &AtlasInstr,
+    td_lookup: &HashMap<usize, AtlasInstr>,
+) -> (Vec<usize>, Vec<usize>, Vec<usize>) {
+    let _a_instr = PreprocessingHelper::get_operand_instruction(td_lookup, instr.ts1, "mk,kn->n");
+    let b_instr = PreprocessingHelper::get_operand_instruction(td_lookup, instr.ts2, "mk,kn->n");
+
+    // For mk,kn->n, m=1 is squeezed in the output
+    // Output is just [n], B is [k, n]
+    let m = 1;
+    let k = b_instr.output_dims[0];
+    let n = b_instr.output_dims[1];
+
+    // Return dims matching the canonical equation: mk,kn->mn
+    (vec![m, k], vec![k, n], vec![m, n])
+}
+
+/// Dimension extraction for k,kn->mn pattern (first operand is 1D vector, output is 2D)
+fn extract_k_kn_mn_dims(
+    instr: &AtlasInstr,
+    td_lookup: &HashMap<usize, AtlasInstr>,
+) -> (Vec<usize>, Vec<usize>, Vec<usize>) {
+    let a_instr = PreprocessingHelper::get_operand_instruction(td_lookup, instr.ts1, "k,kn->mn");
+    let b_instr = PreprocessingHelper::get_operand_instruction(td_lookup, instr.ts2, "k,kn->mn");
+
+    // For k,kn->mn: A is [k], B is [k, n], output is [m, n] where m=1
+    let k = a_instr.output_dims[0];
+    let n = b_instr.output_dims[1];
+    let m = 1; // batch=1 was squeezed in input
+
+    // Return dims matching the canonical equation: mk,kn->mn
+    (vec![m, k], vec![k, n], vec![m, n])
+}
+
+/// Dimension extraction for k,kn->n pattern (first operand is 1D, output is 1D)
+fn extract_k_kn_n_dims(
+    instr: &AtlasInstr,
+    td_lookup: &HashMap<usize, AtlasInstr>,
+) -> (Vec<usize>, Vec<usize>, Vec<usize>) {
+    let a_instr = PreprocessingHelper::get_operand_instruction(td_lookup, instr.ts1, "k,kn->n");
+    let b_instr = PreprocessingHelper::get_operand_instruction(td_lookup, instr.ts2, "k,kn->n");
+
+    // For k,kn->n: A is [k], B is [k, n], output is [n]
+    let k = a_instr.output_dims[0];
+    let n = b_instr.output_dims[1];
+    let m = 1; // batch=1 was squeezed
+
+    // Return dims matching the canonical equation: mk,kn->mn
     (vec![m, k], vec![k, n], vec![m, n])
 }
 

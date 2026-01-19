@@ -11,6 +11,7 @@ use onnx_tracer::instructions::{
     erf::Erf,
     gather::Gather,
     gte::Gte,
+    identity::Identity,
     input::Input,
     mul::Mul,
     relu::Relu,
@@ -33,6 +34,7 @@ pub mod eq;
 pub mod erf;
 pub mod gather;
 pub mod gte;
+pub mod identity;
 pub mod input;
 pub mod mul;
 pub mod relu;
@@ -201,6 +203,7 @@ define_onnx_trait_impls!(
     Erf,
     Gather,
     Gte,
+    Identity,
     Input,
     Mul,
     Relu,

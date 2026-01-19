@@ -1,0 +1,25 @@
+{
+  "name": "mediapipe_text_classifier",
+  "description": "MediaPipe Average Word Embedding text classifier for sentiment analysis",
+  "input_shape": [
+    1,
+    256
+  ],
+  "output_shape": [
+    1,
+    2
+  ],
+  "vocab_size": 10003,
+  "embedding_dim": 16,
+  "max_sequence_length": 256,
+  "labels": [
+    "negative",
+    "positive"
+  ],
+  "architecture": [
+    "Embedding(10003, 16)",
+    "GlobalAveragePooling1D",
+    "Dense(16, 16) + ReLU",
+    "Dense(16, 2) + Softmax"
+  ]
+}

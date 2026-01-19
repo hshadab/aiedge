@@ -42,6 +42,48 @@ This example:
 - Shows authorization decisions with confidence scores
 - Generates and verifies a SNARK proof for one transaction
 
+### MediaPipe Text Classifier (Sentiment Analysis)
+
+A sentiment analysis model based on Google's MediaPipe Average Word Embedding classifier. This example proves the MLP portion of the classifier in zero-knowledge.
+
+```bash
+cargo run --release --example mediapipe_mlp_proof
+```
+
+#### How It Works (Plain English)
+
+**The Problem**: You want to prove that a piece of text is "positive" or "negative" sentiment without revealing your ML model's internal computations to a verifier.
+
+**The Solution**: Zero-knowledge proofs allow you to prove "I ran this neural network correctly and got this result" without the verifier needing to re-run the computation or see the intermediate values.
+
+**What happens step by step**:
+
+1. **Input Preparation**: The text is first converted to a numerical embedding (a list of 16 numbers representing the meaning of the text). This embedding is computed outside the ZK circuit using word embeddings and average pooling.
+
+2. **The MLP Circuit**: The proof covers the Multi-Layer Perceptron (MLP) portion:
+   - **Layer 1**: Takes the 16-number embedding, multiplies it by a 16×16 weight matrix, adds a bias → produces 16 numbers
+   - **ReLU**: Sets any negative numbers to zero (the non-linear "activation")
+   - **Layer 2**: Multiplies by a 16×8 weight matrix, adds bias → produces 8 numbers (padded from 2 classes)
+
+3. **Proof Generation (~5 seconds)**: The prover executes the neural network and generates a cryptographic proof that:
+   - All matrix multiplications were done correctly
+   - The ReLU was applied correctly
+   - The final output genuinely came from running the model on that input
+
+4. **Verification (~2 seconds)**: The verifier checks the proof using only:
+   - The input embedding
+   - The final classification output
+   - The cryptographic proof
+
+   The verifier does NOT need to re-run the neural network or see any intermediate values.
+
+**Why this matters**:
+- **Privacy**: Your model weights and intermediate computations stay private
+- **Trust**: Anyone can verify you ran the real model, not a fake one
+- **Efficiency**: Verification is much faster than re-running the model
+
+**Technical note**: The model dimensions are padded to powers of 2 (required by JOLT's lookup tables), and the output is padded from 2 classes to 8 to meet these requirements.
+
 ## Benchmarks
 
 ### Transformer (self-attention) profile
@@ -55,6 +97,15 @@ Latest run (`cargo run -r -- profile --name self-attention --format default`):
 | End-to-end CLI run | 25.8 s |
 
 The prover hit a peak allocated footprint of roughly 5.6 GB during sumcheck round 10, which matches what we have seen in the integration test harness. Numbers were collected from this workstation; expect ±10% variance depending on CPU, memory bandwidth.
+
+### MediaPipe MLP Sentiment Classifier
+
+| Stage  | Wall clock |
+| ------ | ----------- |
+| Prove  | ~5.0 s |
+| Verify | ~2.2 s |
+
+Model: Dense(16→16) → ReLU → Dense(16→8), proving sentiment classification on pre-computed word embeddings.
 
 ### Cross-project snapshot
 

@@ -3,9 +3,9 @@
 use crate::{
     instructions::{
         add::Add, broadcast::Broadcast, constant::Constant, div::Div, divi::DivI, einsum::Einsum,
-        eq::Eq, erf::Erf, gather::Gather, gte::Gte, input::Input, mul::Mul, relu::Relu,
-        reshape::Reshape, rsqrt::Rsqrt, select::Select, softmax::Softmax, sra::Sra, sub::Sub,
-        sum::Sum, tanh::Tanh,
+        eq::Eq, erf::Erf, gather::Gather, gte::Gte, identity::Identity, input::Input, mul::Mul,
+        relu::Relu, reshape::Reshape, rsqrt::Rsqrt, select::Select, softmax::Softmax, sra::Sra,
+        sub::Sub, sum::Sum, tanh::Tanh,
     },
     trace_types::{AtlasCycle, AtlasInstr, MemoryState, ONNXCycle, ONNXInstr, ONNXOpcode},
     utils::VirtualSlotCounter,
@@ -21,6 +21,7 @@ pub mod eq;
 pub mod erf;
 pub mod gather;
 pub mod gte;
+pub mod identity;
 pub mod input;
 pub mod mul;
 pub mod relu;
@@ -138,6 +139,7 @@ define_onnx_structs!(
     Eq,
     Gather,
     Gte,
+    Identity,
     Input,
     Mul,
     Relu,

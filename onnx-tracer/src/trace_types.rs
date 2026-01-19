@@ -276,6 +276,7 @@ pub enum ONNXOpcode {
     Select,
     Broadcast,
     AddressedNoop,
+    Identity,
 }
 
 #[derive(Clone, Hash, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
@@ -301,6 +302,7 @@ pub enum AtlasOpcode {
     AddressedNoop,
     Erf,
     Tanh,
+    Identity,
 
     // Virtual instructions
     VirtualAdvice,
@@ -341,6 +343,7 @@ impl TryFrom<ONNXOpcode> for AtlasOpcode {
             ONNXOpcode::Reshape => AtlasOpcode::Reshape,
             ONNXOpcode::Sub => AtlasOpcode::Sub,
             ONNXOpcode::Tanh => AtlasOpcode::Tanh,
+            ONNXOpcode::Identity => AtlasOpcode::Identity,
             // Those are treated by specialized sum_check precompiles
             ONNXOpcode::Einsum(subscripts) => AtlasOpcode::Einsum(subscripts),
             ONNXOpcode::Gather => AtlasOpcode::Gather,
