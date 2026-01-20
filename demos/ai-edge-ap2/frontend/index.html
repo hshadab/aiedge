@@ -51,6 +51,49 @@
             overflow-y: auto;
         }
 
+        /* Annotation system */
+        .annotation-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 100;
+            pointer-events: none;
+        }
+        .annotation-highlight {
+            position: absolute;
+            border: 3px solid var(--accent-blue);
+            border-radius: 8px;
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.5);
+            z-index: 120;
+            pointer-events: none;
+            animation: pulse-highlight 2s infinite;
+        }
+        @keyframes pulse-highlight {
+            0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.5); }
+            50% { box-shadow: 0 0 40px rgba(59, 130, 246, 0.8); }
+        }
+        .annotation-tooltip {
+            position: absolute;
+            background: var(--bg-secondary);
+            border: 1px solid var(--accent-blue);
+            border-radius: 8px;
+            padding: 16px;
+            max-width: 320px;
+            z-index: 150;
+            pointer-events: none;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+        .annotation-tooltip h4 {
+            color: var(--accent-blue);
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .annotation-tooltip p {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+
         /* Flow arrow animation */
         .flow-arrow {
             position: relative;
@@ -275,6 +318,13 @@
 
     </main>
 
+    <!-- Annotation System (auto-advances, no manual controls) -->
+    <div id="annotation-overlay" class="annotation-overlay hidden"></div>
+    <div id="annotation-highlight" class="annotation-highlight hidden"></div>
+    <div id="annotation-tooltip" class="annotation-tooltip hidden">
+        <h4 id="annotation-title"></h4>
+        <p id="annotation-text"></p>
+    </div>
 
     <script>
         const API_BASE = 'http://localhost:3001';
@@ -284,6 +334,43 @@
         let demoData = null;
         let activityLog = [];
 
+        // Annotation definitions
+        const ANNOTATIONS = [
+            {
+                target: '#panel-agent',
+                title: '1. On-Device AI Decision',
+                text: 'AI Edge (Gemma running on LiteRT) makes an autonomous decision to purchase route optimization data. This happens locally on the device.',
+                position: 'bottom'
+            },
+            {
+                target: '#function-call-panel',
+                title: '2. Structured Function Call',
+                text: 'The AI outputs a structured function call with vendor, amount, and service details. This deterministic format is what gets classified and proven.',
+                position: 'top'
+            },
+            {
+                target: '#panel-zkml',
+                title: '3. ZKML Classification & Proof',
+                text: 'A SNARK proof is generated proving the function call was classified correctly. The proof is ~48KB and takes ~500ms to generate.',
+                position: 'bottom'
+            },
+            {
+                target: '#panel-policy',
+                title: '4. Enterprise Policy Enforcement',
+                text: 'The spending policy checks category limits, approved vendors, and daily budgets. All checks are cryptographically attested.',
+                position: 'bottom'
+            },
+            {
+                target: '#proof-bundle-panel',
+                title: '5. SpendingProof in AP2 Payment',
+                text: 'The AP2 payment includes the ZKML proof as a SpendingProof - cryptographic evidence that policy was followed.',
+                position: 'top'
+            }
+        ];
+
+        let currentAnnotation = 0;
+        let annotationTimer = null;
+        const ANNOTATION_DELAY = 4000; // 4 seconds per annotation
 
         // Check backend status
         async function checkBackend() {
@@ -521,8 +608,10 @@
 
                 setPanelState('panel-ap2', 'complete');
 
-                // Demo complete
+                // Demo complete - show annotations
                 addLog('success', 'Demo complete', 'End-to-end flow finished');
+                await sleep(1000);
+                showAnnotations();
 
             } catch (e) {
                 addLog('error', 'Demo error', e.message);
@@ -569,8 +658,68 @@
 
             document.getElementById('proof-bundle').innerHTML = '<div class="text-gray-500">Proof will appear here...</div>';
 
+            // Close any open annotations
+            closeAnnotations();
+
             // Reset backend
             fetch(`${API_BASE}/api/v1/demo/reset`, { method: 'POST' }).catch(() => {});
+        }
+
+        // Annotation functions (fully automatic)
+        function showAnnotations() {
+            currentAnnotation = 0;
+            updateAnnotation();
+            annotationTimer = setInterval(() => {
+                if (currentAnnotation < ANNOTATIONS.length - 1) {
+                    currentAnnotation++;
+                    updateAnnotation();
+                } else {
+                    closeAnnotations();
+                }
+            }, ANNOTATION_DELAY);
+        }
+
+        function closeAnnotations() {
+            if (annotationTimer) {
+                clearInterval(annotationTimer);
+                annotationTimer = null;
+            }
+            document.getElementById('annotation-overlay').classList.add('hidden');
+            document.getElementById('annotation-highlight').classList.add('hidden');
+            document.getElementById('annotation-tooltip').classList.add('hidden');
+        }
+
+        function updateAnnotation() {
+            const ann = ANNOTATIONS[currentAnnotation];
+            const target = document.querySelector(ann.target);
+            if (!target) return;
+
+            const rect = target.getBoundingClientRect();
+
+            // Show overlay
+            document.getElementById('annotation-overlay').classList.remove('hidden');
+
+            // Position highlight
+            const highlight = document.getElementById('annotation-highlight');
+            highlight.classList.remove('hidden');
+            highlight.style.top = (rect.top + window.scrollY - 4) + 'px';
+            highlight.style.left = (rect.left - 4) + 'px';
+            highlight.style.width = (rect.width + 8) + 'px';
+            highlight.style.height = (rect.height + 8) + 'px';
+
+            // Update and position tooltip
+            const tooltip = document.getElementById('annotation-tooltip');
+            tooltip.classList.remove('hidden');
+            document.getElementById('annotation-title').textContent = ann.title;
+            document.getElementById('annotation-text').textContent = ann.text;
+
+            if (ann.position === 'bottom') {
+                tooltip.style.top = (rect.bottom + window.scrollY + 12) + 'px';
+                tooltip.style.left = rect.left + 'px';
+            } else {
+                tooltip.style.top = (rect.top + window.scrollY - 100) + 'px';
+                tooltip.style.left = rect.left + 'px';
+            }
         }
 
         // Keyboard shortcuts
@@ -583,6 +732,8 @@
             } else if (e.code === 'KeyR') {
                 e.preventDefault();
                 resetDemo();
+            } else if (e.code === 'Escape') {
+                closeAnnotations();
             }
         });
 
