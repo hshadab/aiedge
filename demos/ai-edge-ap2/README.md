@@ -11,13 +11,67 @@ This demo demonstrates end-to-end integration of:
 
 ```
 ┌─────────────────┐     ┌──────────────────────┐     ┌─────────────────┐     ┌──────────────┐
-│  AI Edge Agent  │────▶│ Jolt Atlas ZKML      │────▶│ Policy Engine   │────▶│ AP2 Payment  │
-│ (Gemma/LiteRT)  │     │ (Real SNARK Proofs)  │     │ (Enterprise)    │     │ (Google)     │
+│  AI Edge Agent  │────▶│ Spending Classifier  │────▶│ Policy Engine   │────▶│ AP2 Payment  │
+│ (Gemma/LiteRT)  │     │ (ZKML Proved)        │     │ (Enterprise)    │     │ (Google)     │
 └─────────────────┘     └──────────────────────┘     └─────────────────┘     └──────────────┘
-     Function Call      Classification +            Policy Compliance       Payment with
-                        Dory Commitment             Verification            SpendingProof
-                        ~5s prove, ~1.3s verify
+     │                        │                           │                       │
+     │                        │                           │                       │
+  Generates              Categorizes &                Checks rules           Payment with
+  function call          creates SNARK proof          (limits, vendors)      SpendingProof
+  (NOT proved)           (~5s prove, ~1.3s verify)
 ```
+
+## What Exactly is Being Proved?
+
+### Important Clarification
+
+The ZKML does **NOT** prove the on-device Gemma AI. Here's why:
+
+| Component | Size | Proved by ZKML? | Why? |
+|-----------|------|-----------------|------|
+| **Gemma (AI Edge)** | ~2B parameters | ❌ No | Too large - would take hours/days |
+| **Spending Classifier** | ~400 parameters | ✅ Yes | Small enough to prove in ~5 seconds |
+
+### The Trust Model
+
+```
+TRUSTED (not proved):
+├── Google AI Edge (Gemma) runs correctly on device
+├── The function call output is authentic
+└── Device hasn't been tampered with
+
+PROVED (with ZKML):
+├── The spending classifier neural network ran correctly
+├── The classification output (e.g., "data_services") is genuine
+├── The exact model (spending_classifier_v1) was used
+└── Anyone can verify without re-running inference
+```
+
+### What the Spending Classifier Does
+
+The AI agent (Gemma) outputs a purchase request like:
+```json
+{
+  "function": "purchase_data_service",
+  "vendor": "HERE Maps",
+  "amount_cents": 1200
+}
+```
+
+The **spending classifier** (a small MLP neural network) categorizes this into:
+- `data_services` - Maps, APIs, data feeds
+- `cloud_compute` - GPU, inference
+- `saas_licenses` - Software subscriptions
+- `blocked` - Unauthorized transactions
+
+The ZKML proof guarantees: *"This classifier really did output 'data_services' for this input."*
+
+### Why This Architecture?
+
+Think of it like a **provable expense auditor**:
+- The AI makes spending decisions (like an employee)
+- The classifier audits those decisions (like an expense system)
+- The ZKML proves the audit was done correctly (like a cryptographic receipt)
 
 ## Real ZKML Performance
 
@@ -28,47 +82,59 @@ This demo demonstrates end-to-end integration of:
 | **Commitment Scheme** | Dory (Polynomial Commitment) |
 | **Transcript** | Keccak256 |
 | **Field** | BN254 (ark-bn254) |
-| **Model Architecture** | MLP: 16→16→8 with ReLU |
+| **Classifier Architecture** | MLP: 16→16→8 with ReLU |
 
-## What This Demo Proves
+## What the Policy Engine Does
 
-### Cryptographic Guarantees
-1. **Verifiable Classification** - SNARK proof that the neural network classified the function call
-2. **Model Integrity** - Proof tied to specific model hash (spending_classifier_v1_jolt_atlas)
-3. **Non-repudiation** - Anyone can verify the proof without re-running inference
+The Policy Engine enforces **enterprise spending rules**:
 
-### Enterprise Value
-- **Policy Enforcement** - Spending categories, vendor whitelists, amount limits
-- **Audit Trail** - Every autonomous purchase has cryptographic proof of compliance
-- **Zero Trust** - Proofs are verified independently, no trust in the agent
+```
+ACME Corp Spending Policy
+├── Categories
+│   ├── data_services: ✅ Allowed up to $500/day
+│   ├── cloud_compute: ✅ Allowed up to $1000/day
+│   ├── saas_licenses: ✅ Approved vendors only
+│   └── blocked: ❌ Never allowed
+│
+├── Approved Vendors
+│   ├── HERE Maps ✅
+│   ├── Google Maps ✅
+│   ├── AWS Bedrock ✅
+│   └── "SketchyData Inc" ❌
+│
+└── Rules
+    ├── Single transaction limit: $500
+    ├── Daily spending limit: $2000
+    └── Require approval above: $1000
+```
 
-## Spending Categories
+For each purchase request, it checks:
+1. **Category allowed?** - Is `data_services` permitted?
+2. **Under limit?** - Is $12 under the $500 category limit?
+3. **Approved vendor?** - Is HERE Maps on the whitelist?
 
-| Category | Description | Example Vendors |
-|----------|-------------|-----------------|
-| `data_services` | API calls, data feeds, routing | HERE Maps, Google Maps, Clearbit |
-| `cloud_compute` | GPU, inference, compute | AWS Bedrock, Lambda, Azure |
-| `saas_licenses` | Software subscriptions | Datadog, Splunk, PagerDuty |
-| `blocked` | Prohibited transactions | External transfers, withdrawals |
+All checks pass → Payment proceeds with SpendingProof attached.
 
 ## Demo Scenarios
 
 ### 1. Approved Purchase (Route Data)
 ```
-Agent: "Purchase route optimization data from HERE Maps"
-Classification: data_services (89% confidence)
-ZKML Proof: Generated in ~4700ms, verified in ~1300ms
-Policy: ✅ Under $500 limit, approved vendor
+AI Agent: "I need route data to avoid traffic delay"
+Function Call: purchase_data_service($12, HERE Maps)
+Classifier: data_services (89% confidence)
+ZKML Proof: ✅ Generated in ~4700ms, verified in ~1300ms
+Policy: ✅ Category allowed, under limit, approved vendor
 Result: Payment processed via AP2 with SpendingProof
 ```
 
 ### 2. Blocked Transfer
 ```
-Agent: "Transfer $5000 to external account"
-Classification: blocked (95% confidence)
-ZKML Proof: Generated and verified (proves correct classification)
-Policy: ❌ Category blocked by enterprise policy
-Result: Payment rejected, audit logged with proof
+AI Agent: "Transfer funds to external account"
+Function Call: transfer_external($5000, unknown)
+Classifier: blocked (95% confidence)
+ZKML Proof: ✅ Generated and verified (proves correct classification)
+Policy: ❌ Category "blocked" is never allowed
+Result: Payment rejected, audit logged with cryptographic proof
 ```
 
 ## Running the Demo
@@ -174,17 +240,29 @@ demos/ai-edge-ap2/
 └── README.md
 ```
 
+## Future: Proving the On-Device AI
+
+To actually prove Gemma or other on-device models, potential approaches:
+
+| Approach | Description | Feasibility |
+|----------|-------------|-------------|
+| **Smaller models** | Use a tiny model (~1M params) that can be proved | Near-term |
+| **TEE + ZKML** | Run Gemma in secure hardware (SGX/TrustZone), combine attestation with ZKML | Medium-term |
+| **Recursive proofs** | Break model into chunks, prove each, aggregate | Research |
+| **Hardware acceleration** | Custom ZK hardware for faster proving | Long-term |
+
 ## Google AI Edge Integration
 
 This demo is designed to integrate with Google's agentic commerce stack:
 
-| Component | Integration |
-|-----------|-------------|
-| **Google AI Edge** | On-device ML (Gemma on LiteRT) for autonomous decisions |
-| **Google A2A** | Agent-to-Agent protocol for multi-agent coordination |
-| **Google AP2** | Agent-to-Payment with SpendingProof field |
+| Component | Role | Integration |
+|-----------|------|-------------|
+| **Google AI Edge** | On-device AI (Gemma on LiteRT) | Generates purchase requests |
+| **Spending Classifier** | Categorizes requests | Proved by Jolt Atlas ZKML |
+| **Google A2A** | Agent-to-Agent protocol | Multi-agent coordination |
+| **Google AP2** | Agent-to-Payment protocol | Receives SpendingProof |
 
-The ZKML proof from Jolt Atlas becomes the cryptographic guarantee that the on-device AI made a policy-compliant decision, enabling trustless autonomous commerce.
+The ZKML proof from Jolt Atlas provides cryptographic evidence that the spending classification was done correctly, enabling trustless autonomous commerce.
 
 ## Status
 
