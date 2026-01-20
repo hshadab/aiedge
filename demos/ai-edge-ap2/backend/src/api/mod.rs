@@ -454,37 +454,44 @@ pub async fn process_ap2_payment(
     State(state): State<Arc<RwLock<AppState>>>,
     Json(request): Json<Ap2PaymentRequest>,
 ) -> Result<Json<Ap2PaymentResponse>, (StatusCode, String)> {
-    let mut state = state.write().await;
+    // First, read transaction data
+    let (vendor, amount_cents, allowed, reason) = {
+        let state = state.read().await;
+        let transaction = state.transactions.iter()
+            .find(|t| t.id == request.transaction_id)
+            .ok_or((StatusCode::NOT_FOUND, "Transaction not found".to_string()))?;
 
-    // Find transaction
-    let tx_idx = state.transactions.iter()
-        .position(|t| t.id == request.transaction_id)
-        .ok_or((StatusCode::NOT_FOUND, "Transaction not found".to_string()))?;
-
-    let transaction = &state.transactions[tx_idx];
+        (
+            transaction.function_call.vendor.clone(),
+            transaction.function_call.amount_cents,
+            transaction.policy_check.allowed,
+            transaction.policy_check.reason.clone(),
+        )
+    };
 
     // Check if payment is allowed
-    if !transaction.policy_check.allowed {
+    if !allowed {
         return Ok(Json(Ap2PaymentResponse {
             success: false,
             ap2_transaction_id: None,
-            message: format!("Payment denied: {}", transaction.policy_check.reason),
+            message: format!("Payment denied: {}", reason),
         }));
     }
 
-    // Process via AP2 gateway
-    let ap2_result = state.ap2_gateway.process_payment(
-        &transaction.function_call.vendor,
-        transaction.function_call.amount_cents,
-    );
+    // Process via AP2 gateway (async call - no blocking!)
+    let ap2_result = {
+        let state = state.read().await;
+        state.ap2_gateway.process_payment_with_proof(&vendor, amount_cents, None).await
+    };
 
     // Update transaction
-    state.transactions[tx_idx].payment_status = if ap2_result.success {
-        "completed".to_string()
-    } else {
-        "failed".to_string()
-    };
-    state.transactions[tx_idx].ap2_transaction_id = ap2_result.transaction_id.clone();
+    {
+        let mut state = state.write().await;
+        if let Some(tx) = state.transactions.iter_mut().find(|t| t.id == request.transaction_id) {
+            tx.payment_status = if ap2_result.success { "completed".to_string() } else { "failed".to_string() };
+            tx.ap2_transaction_id = ap2_result.transaction_id.clone();
+        }
+    }
 
     Ok(Json(Ap2PaymentResponse {
         success: ap2_result.success,
