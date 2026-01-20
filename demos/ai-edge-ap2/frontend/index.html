@@ -30,6 +30,8 @@
         .panel {
             transition: all 0.3s ease;
             border: 2px solid transparent;
+            height: 180px;
+            overflow: hidden;
         }
         .panel.active {
             border-color: var(--accent-blue);
@@ -37,6 +39,16 @@
         }
         .panel.complete {
             border-color: var(--accent-green);
+        }
+
+        /* Fixed height containers */
+        .fixed-content {
+            height: 140px;
+            overflow-y: auto;
+        }
+        .fixed-content-sm {
+            height: 120px;
+            overflow-y: auto;
         }
 
         /* Flow arrow animation */
@@ -230,25 +242,25 @@
 
         <!-- Function Call Display -->
         <div class="grid grid-cols-2 gap-6 mb-6">
-            <div id="function-call-panel" class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+            <div id="function-call-panel" class="bg-gray-800 rounded-lg border border-gray-700 p-4 h-44">
                 <h3 class="text-sm font-semibold mb-2 text-gray-300">Function Call (AI Edge Output)</h3>
-                <pre id="function-call" class="bg-gray-900 rounded p-3 text-xs overflow-x-auto text-green-400 font-mono">{
+                <pre id="function-call" class="bg-gray-900 rounded p-3 text-xs overflow-auto text-green-400 font-mono h-28">{
   "function": "waiting...",
   "vendor": "",
   "amount_cents": 0
 }</pre>
             </div>
 
-            <div id="proof-bundle-panel" class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+            <div id="proof-bundle-panel" class="bg-gray-800 rounded-lg border border-gray-700 p-4 h-44">
                 <h3 class="text-sm font-semibold mb-2 text-gray-300">SpendingProof (Attached to AP2 Payment)</h3>
-                <div id="proof-bundle" class="bg-gray-900 rounded p-3 text-xs">
+                <div id="proof-bundle" class="bg-gray-900 rounded p-3 text-xs overflow-auto h-28">
                     <div class="text-gray-500">Proof will appear here...</div>
                 </div>
             </div>
         </div>
 
         <!-- Activity Log -->
-        <div class="bg-gray-800 rounded-lg border border-gray-700 p-4 mb-6">
+        <div class="bg-gray-800 rounded-lg border border-gray-700 p-4 mb-6 h-56">
             <div class="flex items-center justify-between mb-3">
                 <h3 class="text-sm font-semibold text-gray-300 flex items-center gap-2">
                     <span id="log-indicator" class="w-2 h-2 rounded-full bg-gray-600"></span>
@@ -256,7 +268,7 @@
                 </h3>
                 <span id="log-count" class="text-xs text-gray-500">0 events</span>
             </div>
-            <div id="activity-log" class="activity-log bg-gray-900 rounded p-3 text-xs font-mono">
+            <div id="activity-log" class="activity-log bg-gray-900 rounded p-3 text-xs font-mono h-36">
                 <div class="text-gray-500">Press <kbd>Space</kbd> or click "Run Demo" to start...</div>
             </div>
         </div>
