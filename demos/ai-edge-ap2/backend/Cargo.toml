@@ -3,13 +3,7 @@ name = "ai-edge-ap2-demo"
 version = "0.1.0"
 edition = "2021"
 
-# Standalone - not part of parent workspace
-[workspace]
-
-[features]
-default = []
-# Enable real ZKML proofs using Jolt Atlas (requires nightly Rust)
-real-zkml = ["zkml-jolt-core", "onnx-tracer", "jolt-core", "ark-bn254", "regex"]
+# Part of jolt-atlas workspace - uses real ZKML proofs by default
 
 [dependencies]
 # Web framework
@@ -35,20 +29,12 @@ uuid = { version = "1.0", features = ["v4", "serde"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
-# HTTP client for AP2 service communication
+# HTTP client for AP2 service
 reqwest = { version = "0.11", features = ["json"] }
 
-# Real ZKML dependencies (optional - enabled via 'real-zkml' feature)
-zkml-jolt-core = { path = "../../../zkml-jolt-core", optional = true }
-onnx-tracer = { path = "../../../onnx-tracer", optional = true }
-jolt-core = { git = "https://github.com/ICME-Lab/zkml-jolt", branch = "dev", package = "jolt-core", default-features = true, optional = true }
-ark-bn254 = { version = "0.5.0", optional = true }
-regex = { version = "1.10.6", optional = true }
-
-# Required patches when using real-zkml feature (matching parent workspace)
-[patch.crates-io]
-ark-ff = { git = "https://github.com/a16z/arkworks-algebra", branch = "dev/twist-shout" }
-ark-ec = { git = "https://github.com/a16z/arkworks-algebra", branch = "dev/twist-shout" }
-ark-serialize = { git = "https://github.com/a16z/arkworks-algebra", branch = "dev/twist-shout" }
-ark-bn254 = { git = "https://github.com/a16z/arkworks-algebra", branch = "dev/twist-shout" }
-
+# Real ZKML - Jolt Atlas (from workspace)
+zkml-jolt-core = { path = "../../../zkml-jolt-core" }
+onnx-tracer = { path = "../../../onnx-tracer" }
+jolt-core = { git = "https://github.com/ICME-Lab/zkml-jolt", branch = "dev", package = "jolt-core", default-features = true }
+ark-bn254 = "0.5.0"
+regex = "1.10.6"
