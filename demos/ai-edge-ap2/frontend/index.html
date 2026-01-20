@@ -115,6 +115,23 @@
             color: var(--accent-green);
         }
 
+        /* Scrollable containers with thin scrollbar */
+        .thin-scrollbar {
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--bg-tertiary) var(--bg-secondary);
+        }
+        .thin-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .thin-scrollbar::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+        .thin-scrollbar::-webkit-scrollbar-thumb {
+            background: var(--bg-tertiary);
+            border-radius: 3px;
+        }
+
         /* Activity log */
         .activity-log {
             max-height: 200px;
@@ -287,7 +304,7 @@
         <div class="grid grid-cols-2 gap-6 mb-6">
             <div id="function-call-panel" class="bg-gray-800 rounded-lg border border-gray-700 p-4 h-44">
                 <h3 class="text-sm font-semibold mb-2 text-gray-300">Function Call (AI Edge Output)</h3>
-                <pre id="function-call" class="bg-gray-900 rounded p-3 text-xs overflow-auto text-green-400 font-mono h-28">{
+                <pre id="function-call" class="bg-gray-900 rounded p-3 text-xs text-green-400 font-mono h-28 thin-scrollbar">{
   "function": "waiting...",
   "vendor": "",
   "amount_cents": 0
@@ -296,7 +313,7 @@
 
             <div id="proof-bundle-panel" class="bg-gray-800 rounded-lg border border-gray-700 p-4 h-44">
                 <h3 class="text-sm font-semibold mb-2 text-gray-300">SpendingProof (Attached to AP2 Payment)</h3>
-                <div id="proof-bundle" class="bg-gray-900 rounded p-3 text-xs overflow-auto h-28">
+                <div id="proof-bundle" class="bg-gray-900 rounded p-3 text-xs h-28 thin-scrollbar">
                     <div class="text-gray-500">Proof will appear here...</div>
                 </div>
             </div>
