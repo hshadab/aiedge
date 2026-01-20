@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Edge → AP2 Payment Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --bg-primary: #111827;
+            --bg-secondary: #1f2937;
+            --bg-tertiary: #374151;
+            --border-color: #374151;
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --accent-blue: #3b82f6;
+            --accent-green: #22c55e;
+            --accent-red: #ef4444;
+            --accent-yellow: #f59e0b;
+            --accent-purple: #a855f7;
+        }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        /* Panel animations */
+        .panel {
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        .panel.active {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+        }
+        .panel.complete {
+            border-color: var(--accent-green);
+        }
+
+        /* Flow arrow animation */
+        .flow-arrow {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+        }
+        .flow-arrow::before {
+            content: '→';
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+            transition: color 0.3s;
+        }
+        .flow-arrow.active::before {
+            color: var(--accent-blue);
+        }
+        .flow-arrow.complete::before {
+            color: var(--accent-green);
+        }
+
+        /* Activity log */
+        .activity-log {
+            max-height: 200px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--bg-tertiary) var(--bg-secondary);
+        }
+        .activity-log::-webkit-scrollbar {
+            width: 6px;
+        }
+        .activity-log::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+        .activity-log::-webkit-scrollbar-thumb {
+            background: var(--bg-tertiary);
+            border-radius: 3px;
+        }
+
+        /* Annotation system */
+        .annotation-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 100;
+            pointer-events: none;
+        }
+        .annotation-highlight {
+            position: absolute;
+            border: 3px solid var(--accent-blue);
+            border-radius: 8px;
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.5);
+            z-index: 120;
+            pointer-events: none;
+            animation: pulse-highlight 2s infinite;
+        }
+        @keyframes pulse-highlight {
+            0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.5); }
+            50% { box-shadow: 0 0 40px rgba(59, 130, 246, 0.8); }
+        }
+        .annotation-tooltip {
+            position: absolute;
+            background: var(--bg-secondary);
+            border: 1px solid var(--accent-blue);
+            border-radius: 8px;
+            padding: 16px;
+            max-width: 320px;
+            z-index: 150;
+            pointer-events: auto;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+        .annotation-tooltip h4 {
+            color: var(--accent-blue);
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .annotation-tooltip p {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+
+        /* Stage indicators */
+        .stage-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--bg-tertiary);
+            transition: all 0.3s;
+        }
+        .stage-dot.active {
+            background: var(--accent-blue);
+            animation: pulse 1s infinite;
+        }
+        .stage-dot.complete {
+            background: var(--accent-green);
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+
+        /* Run button */
+        .run-btn {
+            background: linear-gradient(135deg, var(--accent-blue) 0%, #2563eb 100%);
+            transition: all 0.2s;
+        }
+        .run-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
+        }
+        .run-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Keyboard hint */
+        kbd {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 0.75rem;
+            font-family: monospace;
+        }
+
+        /* Proof data display */
+        .proof-hex {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.65rem;
+            color: var(--accent-green);
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- Controls Bar -->
+    <div class="bg-gray-900 border-b border-gray-800 px-6 py-3">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <!-- Run Demo Button -->
+                <button id="run-btn" onclick="runDemo()" class="run-btn text-white font-semibold px-6 py-2 rounded-lg flex items-center gap-2">
+                    <span id="run-icon">▶</span>
+                    <span id="run-text">Run Demo</span>
+                </button>
+                <button onclick="resetDemo()" class="text-sm bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded">
+                    Reset
+                </button>
+                <span id="backend-status" class="text-sm text-gray-400">Connecting...</span>
+            </div>
+            <div class="text-xs text-gray-500">
+                Press <kbd>Space</kbd> to run, <kbd>R</kbd> to reset, <kbd>Esc</kbd> to skip annotations
+            </div>
+        </div>
+    </div>
+
+    <!-- Header with Title -->
+    <header class="bg-gray-800 border-b border-gray-700 px-6 py-4">
+        <div class="flex items-center gap-6">
+            <!-- Novanet Logo -->
+            <img src="https://cdn.prod.website-files.com/65d52b07d5bc41614daa723f/665df12739c532f45b665fe7_logo-novanet.svg" alt="Novanet" class="h-8">
+            <div>
+                <h1 class="text-lg font-bold">Spending Policy Proofs for Google AI Edge Agents</h1>
+                <p class="text-xs text-gray-400">Prove your on-device commercial agent made compliant decisions</p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="p-6">
+        <!-- Flow Visualization -->
+        <div class="flex items-stretch justify-center gap-2 mb-6">
+            <!-- Panel 1: AI Edge Agent -->
+            <div id="panel-agent" class="panel bg-gray-800 rounded-lg border border-gray-700 p-4 w-64">
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="stage-dot" id="stage-agent"></div>
+                    <h3 class="font-semibold text-sm">AI Edge Agent</h3>
+                </div>
+                <p class="text-xs text-gray-400 mb-3">On-device AI (Gemma on LiteRT) making autonomous decisions</p>
+                <div id="agent-status" class="text-xs text-gray-500">Waiting...</div>
+            </div>
+
+            <div class="flow-arrow" id="arrow-1"></div>
+
+            <!-- Panel 2: ZKML Prover -->
+            <div id="panel-zkml" class="panel bg-gray-800 rounded-lg border border-gray-700 p-4 w-64">
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="stage-dot" id="stage-zkml"></div>
+                    <h3 class="font-semibold text-sm">ZKML Prover</h3>
+                </div>
+                <p class="text-xs text-gray-400 mb-3">Classifies intent and generates SNARK proof</p>
+                <div id="zkml-status" class="text-xs text-gray-500">Waiting...</div>
+                <div id="zkml-result" class="hidden mt-2 p-2 bg-gray-900 rounded text-xs">
+                    <div>Category: <span id="category" class="text-blue-400">—</span></div>
+                    <div>Confidence: <span id="confidence" class="text-blue-400">—</span></div>
+                    <div>Proof Time: <span id="proof-time" class="text-green-400">—</span></div>
+                </div>
+            </div>
+
+            <div class="flow-arrow" id="arrow-2"></div>
+
+            <!-- Panel 3: Policy Engine -->
+            <div id="panel-policy" class="panel bg-gray-800 rounded-lg border border-gray-700 p-4 w-64">
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="stage-dot" id="stage-policy"></div>
+                    <h3 class="font-semibold text-sm">Policy Engine</h3>
+                </div>
+                <p class="text-xs text-gray-400 mb-3">Enterprise spending rules enforcement</p>
+                <div id="policy-status" class="text-xs text-gray-500">Waiting...</div>
+                <div id="policy-result" class="hidden mt-2 p-2 bg-gray-900 rounded text-xs">
+                    <div id="policy-checks"></div>
+                </div>
+            </div>
+
+            <div class="flow-arrow" id="arrow-3"></div>
+
+            <!-- Panel 4: AP2 Payment -->
+            <div id="panel-ap2" class="panel bg-gray-800 rounded-lg border border-gray-700 p-4 w-64">
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="stage-dot" id="stage-ap2"></div>
+                    <h3 class="font-semibold text-sm">AP2 Payment</h3>
+                </div>
+                <p class="text-xs text-gray-400 mb-3">Google's Agent-to-Payment protocol</p>
+                <div id="ap2-status" class="text-xs text-gray-500">Waiting...</div>
+                <div id="ap2-result" class="hidden mt-2 p-2 bg-gray-900 rounded text-xs">
+                    <div>Transaction: <span id="ap2-txn" class="text-green-400">—</span></div>
+                    <div>Amount: <span id="ap2-amount" class="text-white">—</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Function Call Display -->
+        <div class="grid grid-cols-2 gap-6 mb-6">
+            <div id="function-call-panel" class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                <h3 class="text-sm font-semibold mb-2 text-gray-300">Function Call (AI Edge Output)</h3>
+                <pre id="function-call" class="bg-gray-900 rounded p-3 text-xs overflow-x-auto text-green-400 font-mono">{
+  "function": "waiting...",
+  "vendor": "",
+  "amount_cents": 0
+}</pre>
+            </div>
+
+            <div id="proof-bundle-panel" class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                <h3 class="text-sm font-semibold mb-2 text-gray-300">SpendingProof (Attached to AP2 Payment)</h3>
+                <div id="proof-bundle" class="bg-gray-900 rounded p-3 text-xs">
+                    <div class="text-gray-500">Proof will appear here...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Log -->
+        <div class="bg-gray-800 rounded-lg border border-gray-700 p-4 mb-6">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-semibold text-gray-300 flex items-center gap-2">
+                    <span id="log-indicator" class="w-2 h-2 rounded-full bg-gray-600"></span>
+                    Activity Log
+                </h3>
+                <span id="log-count" class="text-xs text-gray-500">0 events</span>
+            </div>
+            <div id="activity-log" class="activity-log bg-gray-900 rounded p-3 text-xs font-mono">
+                <div class="text-gray-500">Press <kbd>Space</kbd> or click "Run Demo" to start...</div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Annotation Overlay System -->
+    <div id="annotation-overlay" class="annotation-overlay hidden"></div>
+    <div id="annotation-highlight" class="annotation-highlight hidden"></div>
+    <div id="annotation-tooltip" class="annotation-tooltip hidden">
+        <h4 id="annotation-title"></h4>
+        <p id="annotation-text"></p>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001';
+
+        // Demo state
+        let isRunning = false;
+        let demoData = null;
+        let activityLog = [];
+
+        // Annotation definitions
+        const ANNOTATIONS = [
+            {
+                target: '#panel-agent',
+                title: '1. On-Device AI Decision',
+                text: 'AI Edge (Gemma running on LiteRT) makes an autonomous decision to purchase route optimization data. This happens locally on the device - no cloud LLM required.',
+                position: 'bottom'
+            },
+            {
+                target: '#function-call-panel',
+                title: '2. Structured Function Call',
+                text: 'The AI outputs a structured function call with vendor, amount, and service details. This deterministic format is what gets classified and proven - not raw LLM text.',
+                position: 'top'
+            },
+            {
+                target: '#panel-zkml',
+                title: '3. ZKML Classification & Proof',
+                text: 'A SNARK proof is generated proving the function call was classified correctly by the spending policy model. The proof is ~48KB and takes ~500ms to generate.',
+                position: 'bottom'
+            },
+            {
+                target: '#panel-policy',
+                title: '4. Enterprise Policy Enforcement',
+                text: 'The enterprise spending policy checks: category limits ($250 for logistics), approved vendors, and daily budgets. All checks are cryptographically attested.',
+                position: 'bottom'
+            },
+            {
+                target: '#proof-bundle-panel',
+                title: '5. SpendingProof in AP2 Payment',
+                text: 'The AP2 payment request includes the ZKML proof as a "SpendingProof" - cryptographic evidence that policy was followed. Vendors can verify before accepting payment.',
+                position: 'top'
+            }
+        ];
+
+        let currentAnnotation = 0;
+        let showingAnnotations = false;
+        let annotationTimer = null;
+        const ANNOTATION_DELAY = 5000; // 5 seconds per annotation
+
+        // Check backend status
+        async function checkBackend() {
+            try {
+                const res = await fetch(`${API_BASE}/health`);
+                if (res.ok) {
+                    document.getElementById('backend-status').textContent = '● Backend Connected';
+                    document.getElementById('backend-status').classList.remove('text-red-400');
+                    document.getElementById('backend-status').classList.add('text-green-400');
+                    return true;
+                }
+            } catch (e) {
+                document.getElementById('backend-status').textContent = '○ Backend Offline';
+                document.getElementById('backend-status').classList.remove('text-green-400');
+                document.getElementById('backend-status').classList.add('text-red-400');
+            }
+            return false;
+        }
+
+        // Add log entry
+        function addLog(type, message, details = '') {
+            const icons = {
+                agent: '◉',
+                proof: '◈',
+                policy: '✓',
+                payment: '⬡',
+                success: '★',
+                warning: '!',
+                error: '✗'
+            };
+            const colors = {
+                agent: 'text-blue-400',
+                proof: 'text-purple-400',
+                policy: 'text-yellow-400',
+                payment: 'text-cyan-400',
+                success: 'text-green-400',
+                warning: 'text-yellow-400',
+                error: 'text-red-400'
+            };
+
+            const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+            const entry = { time, type, message, details };
+            activityLog.push(entry);
+
+            const logEl = document.getElementById('activity-log');
+            const entryHtml = `<div class="py-1">
+                <span class="text-gray-500">[${time}]</span>
+                <span class="${colors[type]}">${icons[type]}</span>
+                <span class="text-gray-300">${message}</span>
+                ${details ? `<span class="text-gray-500"> — ${details}</span>` : ''}
+            </div>`;
+
+            if (activityLog.length === 1) {
+                logEl.innerHTML = entryHtml;
+            } else {
+                logEl.innerHTML += entryHtml;
+            }
+            logEl.scrollTop = logEl.scrollHeight;
+
+            document.getElementById('log-count').textContent = `${activityLog.length} events`;
+            document.getElementById('log-indicator').classList.remove('bg-gray-600');
+            document.getElementById('log-indicator').classList.add('bg-green-500');
+        }
+
+        // Update panel state
+        function setPanelState(panelId, state) {
+            const panel = document.getElementById(panelId);
+            const stage = document.getElementById(panelId.replace('panel-', 'stage-'));
+
+            panel.classList.remove('active', 'complete');
+            stage.classList.remove('active', 'complete');
+
+            if (state === 'active') {
+                panel.classList.add('active');
+                stage.classList.add('active');
+            } else if (state === 'complete') {
+                panel.classList.add('complete');
+                stage.classList.add('complete');
+            }
+        }
+
+        // Update arrow state
+        function setArrowState(arrowId, state) {
+            const arrow = document.getElementById(arrowId);
+            arrow.classList.remove('active', 'complete');
+            if (state) arrow.classList.add(state);
+        }
+
+        // Sleep helper
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+        // Run the demo
+        async function runDemo() {
+            if (isRunning) return;
+
+            const backendOk = await checkBackend();
+            if (!backendOk) {
+                addLog('error', 'Backend not available', 'Start the backend server first');
+                return;
+            }
+
+            isRunning = true;
+            document.getElementById('run-btn').disabled = true;
+            document.getElementById('run-icon').textContent = '●';
+            document.getElementById('run-text').textContent = 'Running...';
+
+            // Reset UI
+            activityLog = [];
+            document.getElementById('activity-log').innerHTML = '';
+            ['panel-agent', 'panel-zkml', 'panel-policy', 'panel-ap2'].forEach(p => setPanelState(p, ''));
+            ['arrow-1', 'arrow-2', 'arrow-3'].forEach(a => setArrowState(a, ''));
+            document.getElementById('zkml-result').classList.add('hidden');
+            document.getElementById('policy-result').classList.add('hidden');
+            document.getElementById('ap2-result').classList.add('hidden');
+
+            try {
+                // Stage 1: AI Agent
+                addLog('agent', 'AI Edge agent initiated', 'Gemma on LiteRT');
+                setPanelState('panel-agent', 'active');
+                document.getElementById('agent-status').innerHTML = '<span class="text-blue-400">Processing request...</span>';
+                await sleep(800);
+
+                addLog('agent', 'Analyzing delivery delay', 'Route optimization needed');
+                await sleep(600);
+
+                addLog('agent', 'Decision: Purchase route data', '$12.00 from HERE Maps');
+                document.getElementById('function-call').textContent = JSON.stringify({
+                    function: "purchase_data_service",
+                    vendor: "vendor:here_routing",
+                    amount_cents: 1200,
+                    service: "premium_route_optimization",
+                    context: { delivery_id: "DEL-4521", urgency: "high" }
+                }, null, 2);
+
+                document.getElementById('agent-status').innerHTML = '<span class="text-green-400">✓ Function call generated</span>';
+                setPanelState('panel-agent', 'complete');
+                setArrowState('arrow-1', 'active');
+                await sleep(400);
+
+                // Stage 2: ZKML Prover
+                addLog('proof', 'Loading spending policy model', 'ONNX classifier');
+                setPanelState('panel-zkml', 'active');
+                setArrowState('arrow-1', 'complete');
+                document.getElementById('zkml-status').innerHTML = '<span class="text-blue-400">Classifying intent...</span>';
+                await sleep(500);
+
+                // Call backend
+                addLog('proof', 'Generating SNARK proof...', 'JOLT-Atlas prover');
+                const classifyRes = await fetch(`${API_BASE}/api/v1/demo/trigger/route_purchase`, { method: 'POST' });
+                demoData = await classifyRes.json();
+
+                document.getElementById('zkml-result').classList.remove('hidden');
+                document.getElementById('category').textContent = demoData.classification.category;
+                document.getElementById('confidence').textContent = `${(demoData.classification.confidence * 100).toFixed(0)}%`;
+                document.getElementById('proof-time').textContent = `${demoData.proving_time_ms}ms`;
+
+                addLog('success', `Classification: ${demoData.classification.category}`, `${(demoData.classification.confidence * 100).toFixed(0)}% confidence`);
+                addLog('proof', 'Proof generated', `${demoData.proving_time_ms}ms, ~48KB SNARK`);
+
+                document.getElementById('zkml-status').innerHTML = '<span class="text-green-400">✓ Proof generated</span>';
+                setPanelState('panel-zkml', 'complete');
+                setArrowState('arrow-2', 'active');
+
+                // Show proof bundle
+                if (demoData.proof_bundle) {
+                    document.getElementById('proof-bundle').innerHTML = `
+                        <div class="mb-2"><span class="text-gray-400">classification_proof:</span></div>
+                        <div class="proof-hex mb-2">${demoData.proof_bundle.classification_proof.slice(0, 80)}...</div>
+                        <div class="mb-1"><span class="text-gray-400">policy_attestation:</span></div>
+                        <div class="proof-hex mb-2">${demoData.proof_bundle.policy_attestation}</div>
+                        <div><span class="text-gray-400">model_hash:</span></div>
+                        <div class="proof-hex">${demoData.proof_bundle.model_hash}</div>
+                    `;
+                }
+                await sleep(400);
+
+                // Stage 3: Policy Engine
+                addLog('policy', 'Checking enterprise spending policy', 'Acme Fleet Policy');
+                setPanelState('panel-policy', 'active');
+                setArrowState('arrow-2', 'complete');
+                document.getElementById('policy-status').innerHTML = '<span class="text-blue-400">Evaluating rules...</span>';
+                await sleep(600);
+
+                document.getElementById('policy-result').classList.remove('hidden');
+                const checksHtml = demoData.policy_check.checks_passed.map(c =>
+                    `<div class="text-green-400">✓ ${c.replace('_', ' ')}</div>`
+                ).join('') + demoData.policy_check.checks_failed.map(c =>
+                    `<div class="text-red-400">✗ ${c.replace('_', ' ')}</div>`
+                ).join('');
+                document.getElementById('policy-checks').innerHTML = checksHtml;
+
+                if (demoData.policy_check.allowed) {
+                    addLog('success', 'Policy check: APPROVED', demoData.policy_check.reason);
+                    document.getElementById('policy-status').innerHTML = '<span class="text-green-400">✓ Policy compliant</span>';
+                } else {
+                    addLog('warning', 'Policy check: DENIED', demoData.policy_check.reason);
+                    document.getElementById('policy-status').innerHTML = '<span class="text-red-400">✗ Policy violation</span>';
+                }
+
+                setPanelState('panel-policy', 'complete');
+                setArrowState('arrow-3', 'active');
+                await sleep(400);
+
+                // Stage 4: AP2 Payment
+                if (demoData.payment_ready) {
+                    addLog('payment', 'Initiating AP2 payment', 'Google Agent-to-Payment');
+                    setPanelState('panel-ap2', 'active');
+                    setArrowState('arrow-3', 'complete');
+                    document.getElementById('ap2-status').innerHTML = '<span class="text-blue-400">Processing payment...</span>';
+                    await sleep(500);
+
+                    // Process payment
+                    const payRes = await fetch(`${API_BASE}/api/v1/ap2/pay`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ transaction_id: demoData.transaction_id })
+                    });
+                    const payData = await payRes.json();
+
+                    if (payData.success) {
+                        document.getElementById('ap2-result').classList.remove('hidden');
+                        document.getElementById('ap2-txn').textContent = payData.ap2_transaction_id;
+                        document.getElementById('ap2-amount').textContent = '$12.00 USD';
+
+                        addLog('success', 'Payment complete!', payData.ap2_transaction_id);
+                        document.getElementById('ap2-status').innerHTML = '<span class="text-green-400">✓ Settlement complete</span>';
+                    } else {
+                        addLog('error', 'Payment failed', payData.message);
+                        document.getElementById('ap2-status').innerHTML = '<span class="text-red-400">✗ Payment failed</span>';
+                    }
+                } else {
+                    addLog('warning', 'Payment blocked', demoData.policy_check.reason);
+                    document.getElementById('ap2-status').innerHTML = '<span class="text-red-400">✗ Blocked by policy</span>';
+                }
+
+                setPanelState('panel-ap2', 'complete');
+
+                // Show annotations after delay
+                await sleep(1500);
+                showAnnotations();
+
+            } catch (e) {
+                addLog('error', 'Demo error', e.message);
+                console.error(e);
+            }
+
+            isRunning = false;
+            document.getElementById('run-btn').disabled = false;
+            document.getElementById('run-icon').textContent = '▶';
+            document.getElementById('run-text').textContent = 'Run Demo';
+        }
+
+        // Reset demo
+        function resetDemo() {
+            if (isRunning) return;
+
+            activityLog = [];
+            demoData = null;
+            document.getElementById('activity-log').innerHTML = '<div class="text-gray-500">Press <kbd>Space</kbd> or click "Run Demo" to start...</div>';
+            document.getElementById('log-count').textContent = '0 events';
+            document.getElementById('log-indicator').classList.remove('bg-green-500');
+            document.getElementById('log-indicator').classList.add('bg-gray-600');
+
+            ['panel-agent', 'panel-zkml', 'panel-policy', 'panel-ap2'].forEach(p => {
+                setPanelState(p, '');
+                document.getElementById(p.replace('panel-', '') + '-status')?.textContent;
+            });
+            ['arrow-1', 'arrow-2', 'arrow-3'].forEach(a => setArrowState(a, ''));
+
+            document.getElementById('agent-status').textContent = 'Waiting...';
+            document.getElementById('zkml-status').textContent = 'Waiting...';
+            document.getElementById('policy-status').textContent = 'Waiting...';
+            document.getElementById('ap2-status').textContent = 'Waiting...';
+
+            document.getElementById('zkml-result').classList.add('hidden');
+            document.getElementById('policy-result').classList.add('hidden');
+            document.getElementById('ap2-result').classList.add('hidden');
+
+            document.getElementById('function-call').textContent = JSON.stringify({
+                function: "waiting...",
+                vendor: "",
+                amount_cents: 0
+            }, null, 2);
+
+            document.getElementById('proof-bundle').innerHTML = '<div class="text-gray-500">Proof will appear here...</div>';
+
+            closeAnnotations();
+
+            // Reset backend
+            fetch(`${API_BASE}/api/v1/demo/reset`, { method: 'POST' }).catch(() => {});
+        }
+
+        // Annotation system - auto-advances (no manual controls)
+        function showAnnotations() {
+            showingAnnotations = true;
+            currentAnnotation = 0;
+            updateAnnotation();
+            startAnnotationTimer();
+        }
+
+        function closeAnnotations() {
+            showingAnnotations = false;
+            stopAnnotationTimer();
+            document.getElementById('annotation-overlay').classList.add('hidden');
+            document.getElementById('annotation-highlight').classList.add('hidden');
+            document.getElementById('annotation-tooltip').classList.add('hidden');
+        }
+
+        function startAnnotationTimer() {
+            stopAnnotationTimer();
+            annotationTimer = setInterval(() => {
+                if (currentAnnotation < ANNOTATIONS.length - 1) {
+                    currentAnnotation++;
+                    updateAnnotation();
+                } else {
+                    closeAnnotations();
+                }
+            }, ANNOTATION_DELAY);
+        }
+
+        function stopAnnotationTimer() {
+            if (annotationTimer) {
+                clearInterval(annotationTimer);
+                annotationTimer = null;
+            }
+        }
+
+        function updateAnnotation() {
+            const ann = ANNOTATIONS[currentAnnotation];
+            const target = document.querySelector(ann.target);
+            if (!target) return;
+
+            const rect = target.getBoundingClientRect();
+
+            // Update overlay
+            document.getElementById('annotation-overlay').classList.remove('hidden');
+
+            // Update highlight
+            const highlight = document.getElementById('annotation-highlight');
+            highlight.classList.remove('hidden');
+            highlight.style.top = (rect.top + window.scrollY - 4) + 'px';
+            highlight.style.left = (rect.left - 4) + 'px';
+            highlight.style.width = (rect.width + 8) + 'px';
+            highlight.style.height = (rect.height + 8) + 'px';
+
+            // Update tooltip
+            const tooltip = document.getElementById('annotation-tooltip');
+            tooltip.classList.remove('hidden');
+            document.getElementById('annotation-title').textContent = ann.title;
+            document.getElementById('annotation-text').textContent = ann.text;
+
+            // Position tooltip
+            if (ann.position === 'bottom') {
+                tooltip.style.top = (rect.bottom + window.scrollY + 16) + 'px';
+                tooltip.style.left = rect.left + 'px';
+                tooltip.style.right = 'auto';
+            } else if (ann.position === 'top') {
+                tooltip.style.top = (rect.top + window.scrollY - 120) + 'px';
+                tooltip.style.left = rect.left + 'px';
+                tooltip.style.right = 'auto';
+            }
+
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            if (e.code === 'Space' && !isRunning) {
+                e.preventDefault();
+                runDemo();
+            } else if (e.code === 'KeyR') {
+                e.preventDefault();
+                resetDemo();
+            } else if (e.code === 'Escape' && showingAnnotations) {
+                e.preventDefault();
+                closeAnnotations();
+            }
+        });
+
+        // Initialize
+        checkBackend();
+        setInterval(checkBackend, 5000);
+    </script>
+</body>
+</html>
