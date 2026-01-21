@@ -272,6 +272,7 @@ pub struct ClassifyResponse {
     pub policy_check: PolicyCheckResult,
     pub proof_bundle: Option<ProofBundle>,
     pub proving_time_ms: u128,
+    pub verification_time_ms: Option<u128>,
     pub payment_ready: bool,
 }
 
@@ -331,23 +332,23 @@ pub async fn classify_intent(
         .clone();
 
     // Classify and generate proof
-    let start = std::time::Instant::now();
-
-    let (classification, proof_bundle) = if let Some(ref prover) = state.zkml_prover {
-        let result = prover.classify_and_prove(&request.function_call).await;
-        (result.0, Some(result.1))
+    let (classification, proof_bundle, proving_time_ms, verification_time_ms) = if let Some(ref prover) = state.zkml_prover {
+        let (class_result, proof, prove_ms, verify_ms) = prover.classify_and_prove(&request.function_call).await;
+        (class_result, Some(proof), prove_ms, Some(verify_ms))
     } else {
-        // Fallback if ZKML not initialized yet
-        (
+        // Fallback if zkML not initialized yet
+        let start = std::time::Instant::now();
+        let result = (
             ClassificationResult {
                 category: classify_by_keywords(&request.function_call),
                 confidence: 0.85,
             },
             None,
-        )
+            start.elapsed().as_millis(),
+            None,
+        );
+        result
     };
-
-    let proving_time_ms = start.elapsed().as_millis();
 
     // Check policy
     let policy_check = policy.check_compliance(
@@ -370,7 +371,7 @@ pub async fn classify_intent(
         payment_status: if policy_check.allowed { "ready".to_string() } else { "denied".to_string() },
         ap2_transaction_id: None,
         proving_time_ms,
-        verification_time_ms: None,
+        verification_time_ms,
     };
 
     state.transactions.push(transaction);
@@ -381,6 +382,7 @@ pub async fn classify_intent(
         policy_check: policy_check.clone(),
         proof_bundle,
         proving_time_ms,
+        verification_time_ms,
         payment_ready: policy_check.allowed,
     }))
 }
@@ -571,6 +573,7 @@ pub async fn trigger_scenario(
             },
             proof_bundle: None,
             proving_time_ms: 0,
+            verification_time_ms: None,
             payment_ready: false,
         }),
     }

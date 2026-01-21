@@ -1,7 +1,7 @@
 //! AI Edge → AP2 Payment Demo Backend
 //!
 //! API server that provides:
-//! - ZKML classification and proof generation
+//! - zkML classification and proof generation
 //! - Policy compliance checking
 //! - Mock AP2 payment processing
 //! - Transaction audit logging
@@ -37,13 +37,13 @@ async fn main() {
     // Initialize shared state
     let state = Arc::new(RwLock::new(AppState::new()));
 
-    // Initialize ZKML (preprocessing) in background
+    // Initialize zkML (preprocessing) in background
     let state_clone = state.clone();
     tokio::spawn(async move {
-        tracing::info!("Initializing ZKML preprocessing (this may take a moment)...");
+        tracing::info!("Initializing zkML preprocessing (this may take a moment)...");
         let mut state = state_clone.write().await;
         state.initialize_zkml().await;
-        tracing::info!("ZKML preprocessing complete!");
+        tracing::info!("zkML preprocessing complete!");
     });
 
     // CORS configuration for local development
@@ -57,7 +57,7 @@ async fn main() {
         // Health check
         .route("/health", get(api::health_check))
 
-        // ZKML endpoints
+        // zkML endpoints
         .route("/api/v1/classify", post(api::classify_intent))
         .route("/api/v1/verify", post(api::verify_proof))
 

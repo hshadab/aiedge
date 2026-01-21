@@ -31,6 +31,13 @@ from models import (
     AgentIdentifier,
     MonetaryAmount,
     Currency,
+    check_google_ap2_available,
+    ZKML_SPENDING_PROOF_METHOD,
+)
+from ai_edge_classifier import (
+    get_classifier,
+    check_ai_edge_available,
+    ClassificationResult,
 )
 
 # Configure logging
@@ -100,6 +107,115 @@ async def service_status():
     }
 
 
+@app.get("/api/v1/ap2/status")
+async def google_ap2_status():
+    """
+    Check Google AP2 integration status.
+
+    Returns information about which real Google AP2 types are available.
+    """
+    ap2_info = check_google_ap2_available()
+    return {
+        "integration": "google-ap2",
+        "version": "1.0.0",
+        "repository": "https://github.com/google-agentic-commerce/AP2",
+        "zkml_payment_method": ZKML_SPENDING_PROOF_METHOD,
+        **ap2_info,
+    }
+
+
+# =============================================================================
+# Google AI Edge Classification
+# =============================================================================
+
+class ClassifyRequest(BaseModel):
+    """Request to classify a function call."""
+    function_name: str
+    vendor: str
+    description: Optional[str] = None
+
+
+class ClassifyResponse(BaseModel):
+    """Response from AI Edge classification."""
+    category: str
+    confidence: float
+    inference_time_ms: float
+    model_name: str
+    is_real_ai_edge: bool
+
+
+@app.get("/api/v1/ai-edge/status")
+async def ai_edge_status():
+    """
+    Check Google AI Edge (MediaPipe) integration status.
+
+    Returns information about the classifier and model status.
+    """
+    return check_ai_edge_available()
+
+
+@app.post("/api/v1/ai-edge/classify", response_model=ClassifyResponse)
+async def classify_function_call(request: ClassifyRequest):
+    """
+    Classify an AI agent's function call using Google AI Edge.
+
+    This runs real MediaPipe inference to determine the spending category.
+    """
+    classifier = get_classifier()
+    result = classifier.classify_function_call(
+        function_name=request.function_name,
+        vendor=request.vendor,
+        description=request.description
+    )
+
+    return ClassifyResponse(
+        category=result.category,
+        confidence=result.confidence,
+        inference_time_ms=result.inference_time_ms,
+        model_name=result.model_name,
+        is_real_ai_edge=classifier.is_real_ai_edge,
+    )
+
+
+@app.get("/api/v1/integration/status")
+async def full_integration_status():
+    """
+    Get full integration status for all real Google components.
+
+    Shows which parts of the demo use real Google technology vs simulation.
+    """
+    ap2_info = check_google_ap2_available()
+    ai_edge_info = check_ai_edge_available()
+
+    return {
+        "integration_summary": {
+            "google_ap2": {
+                "status": "real" if ap2_info["google_ap2_available"] else "simulated",
+                "description": "Google Agent Payments Protocol (AP2) types",
+                "repository": "https://github.com/google-agentic-commerce/AP2",
+            },
+            "google_ai_edge": {
+                "status": "real" if ai_edge_info["is_real_ai_edge"] else "simulated",
+                "description": "MediaPipe text classifier for spending categorization",
+                "documentation": "https://ai.google.dev/edge",
+            },
+            "zkml_proofs": {
+                "status": "real",
+                "description": "Jolt Atlas SNARK proofs for classification verification",
+                "note": "Proves the spending classifier, not the LLM agent",
+            },
+            "payment_settlement": {
+                "status": "simulated",
+                "description": "Actual money transfer (sandbox mode)",
+            },
+        },
+        "details": {
+            "ap2": ap2_info,
+            "ai_edge": ai_edge_info,
+        },
+    }
+
+
 # =============================================================================
 # Payment Processing
 # =============================================================================
@@ -152,7 +268,7 @@ async def process_payment(request: ProcessPaymentRequest):
                 "proof_verified": proof_verified,
                 "verification_time_ms": proof_result["verification_time_ms"],
                 "model_hash": payment_req.spending_proof.model_hash,
-                "classification": payment_req.spending_proof.classification_result,
+                "classification": payment_req.spending_proof.classification,
             }
             logger.info(f"SpendingProof verification: {proof_verified}")
 
@@ -199,9 +315,13 @@ async def process_payment(request: ProcessPaymentRequest):
         processing_time = (time.time() - start_time) * 1000
         logger.info(f"Payment processed in {processing_time:.2f}ms: {transaction_id}")
 
+        # Generate Google AP2 format receipt for interoperability
+        google_receipt = receipt.to_google_receipt()
+
         return ProcessPaymentResponse(
             success=True,
             receipt=receipt,
+            google_ap2_receipt=google_receipt.model_dump(),
         )
 
     except HTTPException:
@@ -357,8 +477,9 @@ async def quick_pay(request: QuickPayRequest):
             classification_proof=request.spending_proof.get("classification_proof", ""),
             policy_attestation=request.spending_proof.get("policy_attestation", ""),
             model_hash=request.spending_proof.get("model_hash", ""),
-            classification_result=request.spending_proof.get("classification_result"),
-            confidence=request.spending_proof.get("confidence"),
+            classification=request.spending_proof.get("classification", ""),
+            confidence=request.spending_proof.get("confidence", 0.0),
+            proving_time_ms=request.spending_proof.get("proving_time_ms", 0),
         )
 
     # Build full payment request

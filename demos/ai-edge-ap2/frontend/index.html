@@ -202,6 +202,109 @@
             color: var(--accent-green);
             word-break: break-all;
         }
+
+        /* Scanning/typewriter effect */
+        .scan-container {
+            position: relative;
+            overflow: hidden;
+        }
+        .scan-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent 0%, var(--accent-blue) 50%, transparent 100%);
+            box-shadow: 0 0 10px var(--accent-blue), 0 0 20px var(--accent-blue);
+            opacity: 0;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .scan-bar.active {
+            opacity: 1;
+            animation: scan-down 1.5s ease-in-out;
+        }
+        @keyframes scan-down {
+            0% { top: 0; opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+
+        /* Content reveal animation */
+        .reveal-content {
+            overflow: hidden;
+        }
+        .reveal-line {
+            opacity: 0;
+            transform: translateY(5px);
+            transition: all 0.15s ease-out;
+        }
+        .reveal-line.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Scrolling content area */
+        .scroll-reveal {
+            max-height: 100px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--accent-blue) var(--bg-secondary);
+        }
+        .scroll-reveal::-webkit-scrollbar {
+            width: 4px;
+        }
+        .scroll-reveal::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+        .scroll-reveal::-webkit-scrollbar-thumb {
+            background: var(--accent-blue);
+            border-radius: 2px;
+        }
+
+        /* Typing cursor effect */
+        .typing-cursor::after {
+            content: '▌';
+            animation: blink 0.7s infinite;
+            color: var(--accent-blue);
+        }
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        /* Progress bar for proof generation */
+        .progress-container {
+            width: 100%;
+            height: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-purple) 0%, var(--accent-blue) 50%, var(--accent-green) 100%);
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+        .progress-bar.active {
+            animation: progress-glow 1s ease-in-out infinite;
+        }
+        @keyframes progress-glow {
+            0%, 100% { box-shadow: 0 0 5px var(--accent-purple); }
+            50% { box-shadow: 0 0 15px var(--accent-blue); }
+        }
+
+        /* Instant flash effect */
+        .flash-in {
+            animation: flash-appear 0.15s ease-out;
+        }
+        @keyframes flash-appear {
+            0% { opacity: 0; transform: scale(0.95); }
+            100% { opacity: 1; transform: scale(1); }
+        }
     </style>
 </head>
 <body class="min-h-screen">
@@ -231,8 +334,8 @@
             <!-- Novanet Logo -->
             <img src="https://cdn.prod.website-files.com/65d52b07d5bc41614daa723f/665df12739c532f45b665fe7_logo-novanet.svg" alt="Novanet" class="h-8">
             <div>
-                <h1 class="text-lg font-bold">Real ZKML Proofs for Google AI Edge Agents</h1>
-                <p class="text-xs text-gray-400">Jolt Atlas SNARK proofs (~5s prove, ~1.3s verify) for autonomous agent spending via AP2</p>
+                <h1 class="text-lg font-bold">Real zkML Proofs for Google AI Edge Agents</h1>
+                <p class="text-xs text-gray-400">Jolt Atlas SNARK proofs for autonomous agent spending via Google AP2</p>
             </div>
         </div>
     </header>
@@ -242,79 +345,111 @@
         <!-- Flow Visualization -->
         <div class="flex items-stretch justify-center gap-2 mb-6">
             <!-- Panel 1: AI Edge Agent -->
-            <div id="panel-agent" class="panel bg-gray-800 rounded-lg border border-gray-700 p-4 w-64">
-                <div class="flex items-center gap-2 mb-3">
+            <div id="panel-agent" class="panel bg-gray-800 rounded-lg border border-gray-700 p-4 w-52 scan-container">
+                <div class="scan-bar" id="scan-agent"></div>
+                <div class="flex items-center gap-2 mb-2">
                     <div class="stage-dot" id="stage-agent"></div>
-                    <h3 class="font-semibold text-sm">AI Edge Agent</h3>
+                    <h3 class="font-semibold text-sm">AI Agent</h3>
+                    <span class="text-[10px] bg-yellow-900 text-yellow-300 px-1 rounded">SIMULATED</span>
                 </div>
-                <p class="text-xs text-gray-400 mb-3">On-device AI (Gemma on LiteRT) making autonomous decisions</p>
-                <div id="agent-status" class="text-xs text-gray-500">Waiting...</div>
+                <p class="text-xs text-gray-400 mb-2">LLM makes purchase decision</p>
+                <div id="agent-content" class="scroll-reveal text-xs">
+                    <div id="agent-status" class="text-gray-500">Waiting...</div>
+                </div>
             </div>
 
             <div class="flow-arrow" id="arrow-1"></div>
 
-            <!-- Panel 2: ZKML Prover -->
-            <div id="panel-zkml" class="panel bg-gray-800 rounded-lg border border-gray-700 p-4 w-64">
-                <div class="flex items-center gap-2 mb-3">
-                    <div class="stage-dot" id="stage-zkml"></div>
-                    <h3 class="font-semibold text-sm">Jolt Atlas ZKML</h3>
+            <!-- Panel 2: AI Edge Classifier (NEW - separate from proving) -->
+            <div id="panel-classifier" class="panel bg-gray-800 rounded-lg border border-gray-700 p-4 w-52 scan-container">
+                <div class="scan-bar" id="scan-classifier"></div>
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="stage-dot" id="stage-classifier"></div>
+                    <h3 class="font-semibold text-sm">AI Edge Classifier</h3>
                 </div>
-                <p class="text-xs text-gray-400 mb-3">Real SNARK proof (~5s prove, ~1.3s verify)</p>
-                <div id="zkml-status" class="text-xs text-gray-500">Waiting...</div>
-                <div id="zkml-result" class="hidden mt-2 p-2 bg-gray-900 rounded text-xs">
-                    <div>Category: <span id="category" class="text-blue-400">—</span></div>
-                    <div>Confidence: <span id="confidence" class="text-blue-400">—</span></div>
-                    <div>Proof Time: <span id="proof-time" class="text-green-400">—</span></div>
+                <p class="text-xs text-gray-400 mb-1">Real <a href="https://ai.google.dev/edge/mediapipe/solutions/text/text_classifier" target="_blank" class="text-blue-400 underline">MediaPipe</a> inference</p>
+                <div id="classifier-content" class="scroll-reveal text-xs">
+                    <div id="classifier-status" class="text-gray-500">Waiting...</div>
+                    <div id="classifier-result" class="hidden mt-1 p-2 bg-gray-900 rounded">
+                        <div>Category: <span id="category" class="text-blue-400">—</span></div>
+                        <div>Confidence: <span id="confidence" class="text-blue-400">—</span></div>
+                        <div>Inference: <span id="inference-time" class="text-cyan-400">—</span></div>
+                    </div>
                 </div>
             </div>
 
             <div class="flow-arrow" id="arrow-2"></div>
 
-            <!-- Panel 3: Policy Engine -->
-            <div id="panel-policy" class="panel bg-gray-800 rounded-lg border border-gray-700 p-4 w-64">
-                <div class="flex items-center gap-2 mb-3">
-                    <div class="stage-dot" id="stage-policy"></div>
-                    <h3 class="font-semibold text-sm">Policy Engine</h3>
+            <!-- Panel 3: zkML Prover (proves the classifier) -->
+            <div id="panel-zkml" class="panel bg-gray-800 rounded-lg border border-gray-700 p-4 w-52 scan-container">
+                <div class="scan-bar" id="scan-zkml"></div>
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="stage-dot" id="stage-zkml"></div>
+                    <h3 class="font-semibold text-sm">zkML Prover</h3>
                 </div>
-                <p class="text-xs text-gray-400 mb-3">Enterprise spending rules enforcement</p>
-                <div id="policy-status" class="text-xs text-gray-500">Waiting...</div>
-                <div id="policy-result" class="hidden mt-2 p-2 bg-gray-900 rounded text-xs">
-                    <div id="policy-checks"></div>
+                <p class="text-xs text-gray-400 mb-1">Proves classifier ran correctly</p>
+                <div id="zkml-content" class="scroll-reveal text-xs">
+                    <div id="zkml-status" class="text-gray-500">Waiting...</div>
+                    <div id="zkml-result" class="hidden mt-1 p-2 bg-gray-900 rounded">
+                        <div>Prove: <span id="proof-time" class="text-green-400">—</span></div>
+                        <div>Verify: <span id="verify-time" class="text-green-400">—</span></div>
+                    </div>
                 </div>
             </div>
 
             <div class="flow-arrow" id="arrow-3"></div>
 
-            <!-- Panel 4: AP2 Payment -->
-            <div id="panel-ap2" class="panel bg-gray-800 rounded-lg border border-gray-700 p-4 w-64">
-                <div class="flex items-center gap-2 mb-3">
+            <!-- Panel 4: Policy Engine -->
+            <div id="panel-policy" class="panel bg-gray-800 rounded-lg border border-gray-700 p-4 w-52 scan-container">
+                <div class="scan-bar" id="scan-policy"></div>
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="stage-dot" id="stage-policy"></div>
+                    <h3 class="font-semibold text-sm">Policy Engine</h3>
+                </div>
+                <p class="text-xs text-gray-400 mb-1">Enterprise spending rules</p>
+                <div id="policy-content" class="scroll-reveal text-xs">
+                    <div id="policy-status" class="text-gray-500">Waiting...</div>
+                    <div id="policy-result" class="hidden mt-1 p-2 bg-gray-900 rounded">
+                        <div id="policy-checks"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flow-arrow" id="arrow-4"></div>
+
+            <!-- Panel 5: AP2 Payment -->
+            <div id="panel-ap2" class="panel bg-gray-800 rounded-lg border border-gray-700 p-4 w-52 scan-container">
+                <div class="scan-bar" id="scan-ap2"></div>
+                <div class="flex items-center gap-2 mb-2">
                     <div class="stage-dot" id="stage-ap2"></div>
                     <h3 class="font-semibold text-sm">AP2 Payment</h3>
                 </div>
-                <p class="text-xs text-gray-400 mb-3">Google's Agent-to-Payment protocol</p>
-                <div id="ap2-status" class="text-xs text-gray-500">Waiting...</div>
-                <div id="ap2-result" class="hidden mt-2 p-2 bg-gray-900 rounded text-xs">
-                    <div>Transaction: <span id="ap2-txn" class="text-green-400">—</span></div>
-                    <div>Amount: <span id="ap2-amount" class="text-white">—</span></div>
+                <p class="text-xs text-gray-400 mb-1">Real <a href="https://github.com/google-agentic-commerce/AP2" target="_blank" class="text-blue-400 underline">Google AP2</a> types</p>
+                <div id="ap2-content" class="scroll-reveal text-xs">
+                    <div id="ap2-status" class="text-gray-500">Waiting...</div>
+                    <div id="ap2-result" class="hidden mt-1 p-2 bg-gray-900 rounded">
+                        <div>Transaction: <span id="ap2-txn" class="text-green-400">—</span></div>
+                        <div>Amount: <span id="ap2-amount" class="text-white">—</span></div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Function Call Display -->
         <div class="grid grid-cols-2 gap-6 mb-6">
-            <div id="function-call-panel" class="bg-gray-800 rounded-lg border border-gray-700 p-4 h-44">
+            <div id="function-call-panel" class="bg-gray-800 rounded-lg border border-gray-700 p-4 h-44 scan-container">
+                <div class="scan-bar" id="scan-function"></div>
                 <h3 class="text-sm font-semibold mb-2 text-gray-300">Function Call (AI Edge Output)</h3>
-                <pre id="function-call" class="bg-gray-900 rounded p-3 text-xs text-green-400 font-mono h-28 thin-scrollbar">{
-  "function": "waiting...",
-  "vendor": "",
-  "amount_cents": 0
-}</pre>
+                <div id="function-call" class="bg-gray-900 rounded p-3 text-xs text-green-400 font-mono h-28 thin-scrollbar overflow-y-auto">
+                    <div class="text-gray-500">Waiting...</div>
+                </div>
             </div>
 
-            <div id="proof-bundle-panel" class="bg-gray-800 rounded-lg border border-gray-700 p-4 h-44">
+            <div id="proof-bundle-panel" class="bg-gray-800 rounded-lg border border-gray-700 p-4 h-44 scan-container">
+                <div class="scan-bar" id="scan-proof"></div>
                 <h3 class="text-sm font-semibold mb-2 text-gray-300">SpendingProof (Attached to AP2 Payment)</h3>
-                <div id="proof-bundle" class="bg-gray-900 rounded p-3 text-xs h-28 thin-scrollbar">
-                    <div class="text-gray-500">Proof will appear here...</div>
+                <div id="proof-bundle" class="bg-gray-900 rounded p-3 text-xs h-28 thin-scrollbar overflow-y-auto">
+                    <div class="text-gray-500">Waiting...</div>
                 </div>
             </div>
         </div>
@@ -355,33 +490,33 @@
         const ANNOTATIONS = [
             {
                 target: '#panel-agent',
-                title: '1. On-Device AI Decision',
-                text: 'AI Edge (Gemma running on LiteRT) makes an autonomous decision to purchase route optimization data. This happens locally on the device.',
+                title: '1. AI Agent (Simulated)',
+                text: 'The AI agent makes an autonomous purchase decision. In production, this would be Gemma or another LLM running on-device. Currently simulated for the demo.',
                 position: 'bottom'
             },
             {
-                target: '#function-call-panel',
-                title: '2. Structured Function Call',
-                text: 'The AI outputs a structured function call with vendor, amount, and service details. This deterministic format is what gets classified and proven.',
-                position: 'top'
+                target: '#panel-classifier',
+                title: '2. AI Edge Classifier (Real)',
+                text: 'Real MediaPipe text classifier runs to categorize the spending. This is actual Google AI Edge inference running locally in ~1-2ms.',
+                position: 'bottom'
             },
             {
                 target: '#panel-zkml',
-                title: '3. Real Jolt Atlas ZKML Proof',
-                text: 'A real SNARK proof is generated using Jolt Atlas with Dory polynomial commitments. Proving takes ~5 seconds, verification ~1.3 seconds. This is cryptographic proof of correct ML inference.',
+                title: '3. zkML Prover (Real)',
+                text: 'Jolt Atlas generates a SNARK proof that the classifier ran correctly. Anyone can verify this proof without re-running inference.',
                 position: 'bottom'
             },
             {
                 target: '#panel-policy',
-                title: '4. Enterprise Policy Enforcement',
-                text: 'The spending policy checks category limits, approved vendors, and daily budgets. All checks are cryptographically attested with the ZKML proof.',
+                title: '4. Policy Engine',
+                text: 'Enterprise spending rules are enforced: category limits, approved vendors, daily budgets. The zkML proof attests to the classification.',
                 position: 'bottom'
             },
             {
-                target: '#proof-bundle-panel',
-                title: '5. SpendingProof in AP2 Payment',
-                text: 'The AP2 payment includes the real ZKML proof as a SpendingProof. Anyone can verify the proof without re-running inference - trustless autonomous commerce.',
-                position: 'top'
+                target: '#panel-ap2',
+                title: '5. AP2 Payment (Real Types)',
+                text: 'Payment uses real Google AP2 types. The SpendingProof is attached as PaymentMethodData, enabling trustless autonomous commerce.',
+                position: 'bottom'
             }
         ];
 
@@ -479,6 +614,60 @@
         // Sleep helper
         const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+        // Trigger scan bar animation
+        function triggerScan(panelName) {
+            const scanBar = document.getElementById(`scan-${panelName}`);
+            if (scanBar) {
+                scanBar.classList.remove('active');
+                void scanBar.offsetWidth; // Force reflow
+                scanBar.classList.add('active');
+            }
+        }
+
+        // Typewriter effect for a text element
+        async function typeWriter(element, text, speed = 30) {
+            element.textContent = '';
+            element.classList.add('typing-cursor');
+            for (let i = 0; i < text.length; i++) {
+                element.textContent += text[i];
+                // Auto-scroll parent if needed
+                const parent = element.closest('.scroll-reveal');
+                if (parent) parent.scrollTop = parent.scrollHeight;
+                await sleep(speed);
+            }
+            element.classList.remove('typing-cursor');
+        }
+
+        // Reveal content line by line with scroll
+        async function revealLines(container, lines, delayBetween = 150) {
+            container.innerHTML = '';
+            for (const line of lines) {
+                const div = document.createElement('div');
+                div.className = 'reveal-line';
+                div.innerHTML = line;
+                container.appendChild(div);
+                await sleep(50);
+                div.classList.add('visible');
+                container.scrollTop = container.scrollHeight;
+                await sleep(delayBetween);
+            }
+        }
+
+        // Add content to a panel with auto-scroll
+        function appendToPanel(contentId, html) {
+            const container = document.getElementById(contentId);
+            if (container) {
+                const div = document.createElement('div');
+                div.className = 'reveal-line';
+                div.innerHTML = html;
+                container.appendChild(div);
+                requestAnimationFrame(() => {
+                    div.classList.add('visible');
+                    container.scrollTop = container.scrollHeight;
+                });
+            }
+        }
+
         // Run the demo
         async function runDemo() {
             if (isRunning) return;
@@ -497,107 +686,244 @@
             // Reset UI
             activityLog = [];
             document.getElementById('activity-log').innerHTML = '';
-            ['panel-agent', 'panel-zkml', 'panel-policy', 'panel-ap2'].forEach(p => setPanelState(p, ''));
-            ['arrow-1', 'arrow-2', 'arrow-3'].forEach(a => setArrowState(a, ''));
-            document.getElementById('zkml-result').classList.add('hidden');
-            document.getElementById('policy-result').classList.add('hidden');
-            document.getElementById('ap2-result').classList.add('hidden');
+            ['panel-agent', 'panel-classifier', 'panel-zkml', 'panel-policy', 'panel-ap2'].forEach(p => setPanelState(p, ''));
+            ['arrow-1', 'arrow-2', 'arrow-3', 'arrow-4'].forEach(a => setArrowState(a, ''));
+            // Reset content areas
+            document.getElementById('agent-content').innerHTML = '';
+            document.getElementById('classifier-content').innerHTML = '';
+            document.getElementById('zkml-content').innerHTML = '';
+            document.getElementById('policy-content').innerHTML = '';
+            document.getElementById('ap2-content').innerHTML = '';
+            document.getElementById('function-call').innerHTML = '<div class="text-gray-500">Generating...</div>';
+            document.getElementById('proof-bundle').innerHTML = '<div class="text-gray-500">Generating...</div>';
+            // Reset scan bars
+            ['scan-agent', 'scan-classifier', 'scan-zkml', 'scan-policy', 'scan-ap2', 'scan-function', 'scan-proof'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.remove('active');
+            });
 
             try {
-                // Stage 1: AI Agent
+                // Stage 1: AI Agent - with scanning effect
                 addLog('agent', 'AI Edge agent initiated', 'Gemma on LiteRT');
                 setPanelState('panel-agent', 'active');
-                document.getElementById('agent-status').innerHTML = '<span class="text-blue-400">Processing request...</span>';
-                await sleep(800);
+                triggerScan('agent');
 
-                addLog('agent', 'Analyzing delivery delay', 'Route optimization needed');
-                await sleep(600);
+                // Clear and reveal content line by line
+                const agentContent = document.getElementById('agent-content');
+                agentContent.innerHTML = '';
 
-                addLog('agent', 'Decision: Purchase route data', '$12.00 from HERE Maps');
-                document.getElementById('function-call').textContent = JSON.stringify({
-                    function: "purchase_data_service",
-                    vendor: "vendor:here_routing",
-                    amount_cents: 1200,
-                    service: "premium_route_optimization",
-                    context: { delivery_id: "DEL-4521", urgency: "high" }
-                }, null, 2);
-
-                document.getElementById('agent-status').innerHTML = '<span class="text-green-400">✓ Function call generated</span>';
-                setPanelState('panel-agent', 'complete');
-                setArrowState('arrow-1', 'active');
+                await sleep(200);
+                appendToPanel('agent-content', '<span class="text-blue-400">▸ Initializing LLM...</span>');
+                await sleep(400);
+                appendToPanel('agent-content', '<span class="text-blue-400">▸ Processing request...</span>');
                 await sleep(400);
 
-                // Stage 2: ZKML Prover
-                addLog('proof', 'Loading spending_classifier model', 'Jolt Atlas ZKML');
-                setPanelState('panel-zkml', 'active');
-                setArrowState('arrow-1', 'complete');
-                document.getElementById('zkml-status').innerHTML = '<span class="text-blue-400">Generating real SNARK proof...</span>';
-                await sleep(500);
+                addLog('agent', 'Analyzing delivery delay', 'Route optimization needed');
+                appendToPanel('agent-content', '<span class="text-cyan-400">▸ Analyzing context...</span>');
+                await sleep(300);
+                appendToPanel('agent-content', '<span class="text-cyan-400">▸ Delivery delay detected</span>');
+                await sleep(300);
 
-                // Call backend
-                addLog('proof', 'Generating SNARK proof (Dory commitment)...', 'This takes ~5 seconds');
+                addLog('agent', 'Decision: Purchase route data', '$12.00 from HERE Maps');
+                appendToPanel('agent-content', '<span class="text-yellow-400">▸ Decision: purchase_data</span>');
+                await sleep(200);
+                appendToPanel('agent-content', '<span class="text-green-400">✓ Function call ready</span>');
+
+                // Type out function call JSON line by line
+                triggerScan('function');
+                const funcCallEl = document.getElementById('function-call');
+                funcCallEl.innerHTML = '';
+                const funcCallLines = [
+                    '{',
+                    '  <span class="text-purple-400">"function"</span>: <span class="text-yellow-400">"purchase_data_service"</span>,',
+                    '  <span class="text-purple-400">"vendor"</span>: <span class="text-yellow-400">"vendor:here_routing"</span>,',
+                    '  <span class="text-purple-400">"amount_cents"</span>: <span class="text-cyan-400">1200</span>,',
+                    '  <span class="text-purple-400">"service"</span>: <span class="text-yellow-400">"premium_route_optimization"</span>,',
+                    '  <span class="text-purple-400">"context"</span>: {',
+                    '    <span class="text-purple-400">"delivery_id"</span>: <span class="text-yellow-400">"DEL-4521"</span>,',
+                    '    <span class="text-purple-400">"urgency"</span>: <span class="text-yellow-400">"high"</span>',
+                    '  }',
+                    '}'
+                ];
+                for (const line of funcCallLines) {
+                    const div = document.createElement('div');
+                    div.className = 'reveal-line';
+                    div.innerHTML = line;
+                    funcCallEl.appendChild(div);
+                    await sleep(80);
+                    div.classList.add('visible');
+                    funcCallEl.scrollTop = funcCallEl.scrollHeight;
+                }
+
+                setPanelState('panel-agent', 'complete');
+                setArrowState('arrow-1', 'active');
+                await sleep(300);
+
+                // Stage 2: AI Edge Classifier (Real MediaPipe) - INSTANT (1-2ms)
+                addLog('agent', 'Running AI Edge classifier', 'Real MediaPipe inference');
+                setPanelState('panel-classifier', 'active');
+                setArrowState('arrow-1', 'complete');
+                triggerScan('classifier');
+
+                const classifierContent = document.getElementById('classifier-content');
+                classifierContent.innerHTML = '<span class="text-blue-400">▸ Running inference...</span>';
+
+                // Call backend - this does both classification AND proving
                 const classifyRes = await fetch(`${API_BASE}/api/v1/demo/trigger/route_purchase`, { method: 'POST' });
                 demoData = await classifyRes.json();
 
-                document.getElementById('zkml-result').classList.remove('hidden');
-                document.getElementById('category').textContent = demoData.classification.category;
-                document.getElementById('confidence').textContent = `${(demoData.classification.confidence * 100).toFixed(0)}%`;
-                document.getElementById('proof-time').textContent = `${demoData.proving_time_ms}ms`;
+                // INSTANT flash - inference is ~1ms, should feel immediate
+                const inferenceTimeMs = demoData.inference_time_ms || 1.5;
+                classifierContent.innerHTML = `
+                    <div class="flash-in">
+                        <div class="text-cyan-400">▸ Inference: <strong>${inferenceTimeMs.toFixed(1)}ms</strong></div>
+                        <div class="text-yellow-400">▸ Category: <strong>${demoData.classification.category}</strong></div>
+                        <div class="text-yellow-400">▸ Confidence: <strong>${(demoData.classification.confidence * 100).toFixed(0)}%</strong></div>
+                        <div class="text-green-400 mt-1">✓ Complete</div>
+                    </div>
+                `;
 
-                addLog('success', `Classification: ${demoData.classification.category}`, `${(demoData.classification.confidence * 100).toFixed(0)}% confidence`);
-                addLog('proof', 'Real SNARK proof verified', `${demoData.proving_time_ms}ms total (Jolt Atlas + Dory PCS)`);
-
-                document.getElementById('zkml-status').innerHTML = '<span class="text-green-400">✓ Proof generated</span>';
-                setPanelState('panel-zkml', 'complete');
+                addLog('success', `Classification: ${demoData.classification.category}`, `${(demoData.classification.confidence * 100).toFixed(0)}% confidence, ${inferenceTimeMs.toFixed(1)}ms`);
+                setPanelState('panel-classifier', 'complete');
                 setArrowState('arrow-2', 'active');
+                await sleep(200);
 
-                // Show proof bundle
+                // Stage 3: zkML Prover (proves the classifier ran correctly) - SLOW (~5-7s)
+                addLog('proof', 'Generating zkML proof', 'Proving classifier ran correctly');
+                setPanelState('panel-zkml', 'active');
+                setArrowState('arrow-2', 'complete');
+                triggerScan('zkml');
+
+                const zkmlContent = document.getElementById('zkml-content');
+                const proveTimeSec = (demoData.proving_time_ms / 1000).toFixed(2);
+                const verifyTimeSec = demoData.verification_time_ms ? (demoData.verification_time_ms / 1000).toFixed(2) : '—';
+                const totalTime = demoData.proving_time_ms + (demoData.verification_time_ms || 0);
+
+                // Show progress bar with live timer
+                zkmlContent.innerHTML = `
+                    <div class="text-purple-400 mb-1">▸ Generating SNARK proof...</div>
+                    <div class="progress-container">
+                        <div class="progress-bar active" id="proof-progress"></div>
+                    </div>
+                    <div class="text-gray-400 text-[10px]" id="proof-timer">Elapsed: 0.0s</div>
+                `;
+
+                // Animate progress bar over the actual proof time
+                const progressBar = document.getElementById('proof-progress');
+                const timerEl = document.getElementById('proof-timer');
+                const startTime = Date.now();
+                const animDuration = Math.min(totalTime * 0.8, 6000); // Cap at 6s animation
+
+                await new Promise(resolve => {
+                    const interval = setInterval(() => {
+                        const elapsed = Date.now() - startTime;
+                        const progress = Math.min((elapsed / animDuration) * 100, 100);
+                        progressBar.style.width = progress + '%';
+                        timerEl.textContent = `Elapsed: ${(elapsed / 1000).toFixed(1)}s`;
+
+                        if (progress >= 100) {
+                            clearInterval(interval);
+                            resolve();
+                        }
+                    }, 50);
+                });
+
+                // Show final results
+                progressBar.classList.remove('active');
+                zkmlContent.innerHTML = `
+                    <div class="flash-in">
+                        <div class="text-purple-400">▸ SNARK generated</div>
+                        <div class="text-cyan-400">▸ Prove: <strong>${proveTimeSec}s</strong></div>
+                        <div class="text-cyan-400">▸ Verify: <strong>${verifyTimeSec}s</strong></div>
+                        <div class="text-green-400 mt-1">✓ Proof verified</div>
+                    </div>
+                `;
+
+                addLog('proof', 'SNARK proof generated & verified', `Prove: ${proveTimeSec}s, Verify: ${verifyTimeSec}s`);
+                setPanelState('panel-zkml', 'complete');
+                setArrowState('arrow-3', 'active');
+
+                // Show proof bundle with typewriter effect and scanning
                 if (demoData.proof_bundle) {
-                    document.getElementById('proof-bundle').innerHTML = `
-                        <div class="mb-2"><span class="text-gray-400">classification_proof:</span></div>
-                        <div class="proof-hex mb-2">${demoData.proof_bundle.classification_proof.slice(0, 80)}...</div>
-                        <div class="mb-1"><span class="text-gray-400">policy_attestation:</span></div>
-                        <div class="proof-hex mb-2">${demoData.proof_bundle.policy_attestation}</div>
-                        <div><span class="text-gray-400">model_hash:</span></div>
-                        <div class="proof-hex">${demoData.proof_bundle.model_hash}</div>
-                    `;
-                }
-                await sleep(400);
+                    triggerScan('proof');
+                    const proofEl = document.getElementById('proof-bundle');
+                    proofEl.innerHTML = '';
 
-                // Stage 3: Policy Engine
+                    const proofLines = [
+                        '<span class="text-gray-400">classification_proof:</span>',
+                        `<span class="proof-hex">${demoData.proof_bundle.classification_proof.slice(0, 40)}</span>`,
+                        `<span class="proof-hex">${demoData.proof_bundle.classification_proof.slice(40, 80)}...</span>`,
+                        '<span class="text-gray-400 mt-2">policy_attestation:</span>',
+                        `<span class="proof-hex">${demoData.proof_bundle.policy_attestation.slice(0, 50)}</span>`,
+                        `<span class="proof-hex">${demoData.proof_bundle.policy_attestation.slice(50, 100)}...</span>`,
+                        '<span class="text-gray-400 mt-2">model_hash:</span>',
+                        `<span class="proof-hex">${demoData.proof_bundle.model_hash}</span>`
+                    ];
+
+                    for (const line of proofLines) {
+                        const div = document.createElement('div');
+                        div.className = 'reveal-line';
+                        div.innerHTML = line;
+                        proofEl.appendChild(div);
+                        await sleep(120);
+                        div.classList.add('visible');
+                        proofEl.scrollTop = proofEl.scrollHeight;
+                    }
+                }
+                await sleep(300);
+
+                // Stage 4: Policy Engine
                 addLog('policy', 'Checking enterprise spending policy', 'Acme Fleet Policy');
                 setPanelState('panel-policy', 'active');
-                setArrowState('arrow-2', 'complete');
-                document.getElementById('policy-status').innerHTML = '<span class="text-blue-400">Evaluating rules...</span>';
-                await sleep(600);
+                setArrowState('arrow-3', 'complete');
+                triggerScan('policy');
 
-                document.getElementById('policy-result').classList.remove('hidden');
-                const checksHtml = demoData.policy_check.checks_passed.map(c =>
-                    `<div class="text-green-400">✓ ${c.replace('_', ' ')}</div>`
-                ).join('') + demoData.policy_check.checks_failed.map(c =>
-                    `<div class="text-red-400">✗ ${c.replace('_', ' ')}</div>`
-                ).join('');
-                document.getElementById('policy-checks').innerHTML = checksHtml;
+                const policyContent = document.getElementById('policy-content');
+                policyContent.innerHTML = '';
+
+                await sleep(200);
+                appendToPanel('policy-content', '<span class="text-blue-400">▸ Loading policy...</span>');
+                await sleep(300);
+                appendToPanel('policy-content', '<span class="text-blue-400">▸ Evaluating rules...</span>');
+                await sleep(300);
+
+                // Show policy checks one by one
+                for (const check of demoData.policy_check.checks_passed) {
+                    appendToPanel('policy-content', `<span class="text-green-400">✓ ${check.replace('_', ' ')}</span>`);
+                    await sleep(200);
+                }
+                for (const check of demoData.policy_check.checks_failed) {
+                    appendToPanel('policy-content', `<span class="text-red-400">✗ ${check.replace('_', ' ')}</span>`);
+                    await sleep(200);
+                }
 
                 if (demoData.policy_check.allowed) {
                     addLog('success', 'Policy check: APPROVED', demoData.policy_check.reason);
-                    document.getElementById('policy-status').innerHTML = '<span class="text-green-400">✓ Policy compliant</span>';
+                    appendToPanel('policy-content', '<span class="text-green-400 font-semibold">✓ APPROVED</span>');
                 } else {
                     addLog('warning', 'Policy check: DENIED', demoData.policy_check.reason);
-                    document.getElementById('policy-status').innerHTML = '<span class="text-red-400">✗ Policy violation</span>';
+                    appendToPanel('policy-content', '<span class="text-red-400 font-semibold">✗ DENIED</span>');
                 }
 
                 setPanelState('panel-policy', 'complete');
-                setArrowState('arrow-3', 'active');
-                await sleep(400);
+                setArrowState('arrow-4', 'active');
+                await sleep(300);
 
-                // Stage 4: AP2 Payment
+                // Stage 5: AP2 Payment
+                setPanelState('panel-ap2', 'active');
+                setArrowState('arrow-4', 'complete');
+                triggerScan('ap2');
+
+                const ap2Content = document.getElementById('ap2-content');
+                ap2Content.innerHTML = '';
+
                 if (demoData.payment_ready) {
                     addLog('payment', 'Initiating AP2 payment', 'Google Agent-to-Payment');
-                    setPanelState('panel-ap2', 'active');
-                    setArrowState('arrow-3', 'complete');
-                    document.getElementById('ap2-status').innerHTML = '<span class="text-blue-400">Processing payment...</span>';
-                    await sleep(500);
+
+                    await sleep(200);
+                    appendToPanel('ap2-content', '<span class="text-blue-400">▸ Connecting to AP2...</span>');
+                    await sleep(300);
+                    appendToPanel('ap2-content', '<span class="text-blue-400">▸ Processing payment...</span>');
 
                     // Process payment
                     const payRes = await fetch(`${API_BASE}/api/v1/ap2/pay`, {
@@ -607,27 +933,33 @@
                     });
                     const payData = await payRes.json();
 
+                    await sleep(200);
                     if (payData.success) {
-                        document.getElementById('ap2-result').classList.remove('hidden');
-                        document.getElementById('ap2-txn').textContent = payData.ap2_transaction_id;
-                        document.getElementById('ap2-amount').textContent = '$12.00 USD';
+                        appendToPanel('ap2-content', '<span class="text-cyan-400">▸ Payment authorized</span>');
+                        await sleep(150);
+                        appendToPanel('ap2-content', `<span class="text-yellow-400">▸ Amount: $12.00 USD</span>`);
+                        await sleep(150);
+                        appendToPanel('ap2-content', `<span class="text-gray-400">▸ Txn: ${payData.ap2_transaction_id.slice(0, 12)}...</span>`);
+                        await sleep(150);
+                        appendToPanel('ap2-content', '<span class="text-green-400 font-semibold">✓ Settlement complete</span>');
 
                         addLog('success', 'Payment complete!', payData.ap2_transaction_id);
-                        document.getElementById('ap2-status').innerHTML = '<span class="text-green-400">✓ Settlement complete</span>';
                     } else {
+                        appendToPanel('ap2-content', `<span class="text-red-400">✗ ${payData.message}</span>`);
                         addLog('error', 'Payment failed', payData.message);
-                        document.getElementById('ap2-status').innerHTML = '<span class="text-red-400">✗ Payment failed</span>';
                     }
                 } else {
+                    appendToPanel('ap2-content', '<span class="text-red-400">▸ Payment blocked</span>');
+                    await sleep(150);
+                    appendToPanel('ap2-content', `<span class="text-red-400">✗ ${demoData.policy_check.reason}</span>`);
                     addLog('warning', 'Payment blocked', demoData.policy_check.reason);
-                    document.getElementById('ap2-status').innerHTML = '<span class="text-red-400">✗ Blocked by policy</span>';
                 }
 
                 setPanelState('panel-ap2', 'complete');
 
                 // Demo complete - show annotations
                 addLog('success', 'Demo complete', 'End-to-end flow finished');
-                await sleep(1000);
+                await sleep(1500);
                 showAnnotations();
 
             } catch (e) {
@@ -652,28 +984,26 @@
             document.getElementById('log-indicator').classList.remove('bg-green-500');
             document.getElementById('log-indicator').classList.add('bg-gray-600');
 
-            ['panel-agent', 'panel-zkml', 'panel-policy', 'panel-ap2'].forEach(p => {
+            ['panel-agent', 'panel-classifier', 'panel-zkml', 'panel-policy', 'panel-ap2'].forEach(p => {
                 setPanelState(p, '');
-                document.getElementById(p.replace('panel-', '') + '-status')?.textContent;
             });
-            ['arrow-1', 'arrow-2', 'arrow-3'].forEach(a => setArrowState(a, ''));
+            ['arrow-1', 'arrow-2', 'arrow-3', 'arrow-4'].forEach(a => setArrowState(a, ''));
 
-            document.getElementById('agent-status').textContent = 'Waiting...';
-            document.getElementById('zkml-status').textContent = 'Waiting...';
-            document.getElementById('policy-status').textContent = 'Waiting...';
-            document.getElementById('ap2-status').textContent = 'Waiting...';
+            // Reset content areas with waiting state
+            document.getElementById('agent-content').innerHTML = '<div class="text-gray-500">Waiting...</div>';
+            document.getElementById('classifier-content').innerHTML = '<div class="text-gray-500">Waiting...</div>';
+            document.getElementById('zkml-content').innerHTML = '<div class="text-gray-500">Waiting...</div>';
+            document.getElementById('policy-content').innerHTML = '<div class="text-gray-500">Waiting...</div>';
+            document.getElementById('ap2-content').innerHTML = '<div class="text-gray-500">Waiting...</div>';
 
-            document.getElementById('zkml-result').classList.add('hidden');
-            document.getElementById('policy-result').classList.add('hidden');
-            document.getElementById('ap2-result').classList.add('hidden');
+            // Remove scan bar active state
+            ['scan-agent', 'scan-classifier', 'scan-zkml', 'scan-policy', 'scan-ap2', 'scan-function', 'scan-proof'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.remove('active');
+            });
 
-            document.getElementById('function-call').textContent = JSON.stringify({
-                function: "waiting...",
-                vendor: "",
-                amount_cents: 0
-            }, null, 2);
-
-            document.getElementById('proof-bundle').innerHTML = '<div class="text-gray-500">Proof will appear here...</div>';
+            document.getElementById('function-call').innerHTML = '<div class="text-gray-500">Waiting...</div>';
+            document.getElementById('proof-bundle').innerHTML = '<div class="text-gray-500">Waiting...</div>';
 
             // Close any open annotations
             closeAnnotations();

@@ -1,12 +1,12 @@
-# Implementation Plan: Real AI Edge → ZKML → AP2 Demo
+# Implementation Plan: Real AI Edge → zkML → AP2 Demo
 
 ## Status: ✅ IMPLEMENTED
 
 This document describes the implementation plan. The following components have been implemented:
 
-### ✅ Phase 1: Real ZKML Proofs (Jolt Atlas)
-- **Cargo.toml**: Updated with feature-gated ZKML dependencies (`real-zkml` feature)
-- **zkml/mod.rs**: Dual implementation with mock (default) and real ZKML prover
+### ✅ Phase 1: Real zkML Proofs (Jolt Atlas)
+- **Cargo.toml**: Updated with feature-gated zkML dependencies (`real-zkml` feature)
+- **zkml/mod.rs**: Dual implementation with mock (default) and real zkML prover
 - **spending_classifier**: Model exists at `onnx-tracer/models/spending_classifier/`
 
 ### ✅ Phase 2: Real AP2 Protocol (Python Service)
@@ -48,7 +48,7 @@ This document describes the implementation plan. The following components have b
 │           │                    │                       │                │
 │           ▼                    ▼                       ▼                │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────────┐     │
-│  │ ZKML Prover     │  │ Policy Engine   │  │ AP2 Client          │     │
+│  │ zkML Prover     │  │ Policy Engine   │  │ AP2 Client          │     │
 │  │                 │  │                 │  │                     │     │
 │  │ Mock (default): │  │ - Category      │  │ Calls Python AP2    │     │
 │  │ - Fast proofs   │  │   limits        │  │ service on :3002    │     │
@@ -92,7 +92,7 @@ demos/ai-edge-ap2/
 │   └── src/
 │       ├── main.rs             # Axum server
 │       ├── api/mod.rs          # API handlers
-│       ├── zkml/mod.rs         # ZKML prover (mock + real)
+│       ├── zkml/mod.rs         # zkML prover (mock + real)
 │       └── ap2/mod.rs          # AP2 client (calls Python service)
 ├── ap2-service/
 │   ├── requirements.txt        # Python dependencies
@@ -120,7 +120,7 @@ This starts:
 - **Backend**: http://localhost:3001
 - **AP2 Service**: http://localhost:3002
 
-### With Real ZKML Proofs (Requires Nightly Rust)
+### With Real zkML Proofs (Requires Nightly Rust)
 ```bash
 # Ensure nightly Rust
 rustup default nightly
@@ -193,7 +193,7 @@ The SpendingProof attached to AP2 payments:
 
 ## Next Steps
 
-### To Enable Real ZKML
+### To Enable Real zkML
 1. Ensure nightly Rust: `rustup default nightly`
 2. Build with feature: `cargo build --release --features real-zkml`
 3. First startup takes ~30s for model preprocessing
@@ -220,5 +220,5 @@ The SpendingProof attached to AP2 payments:
 | AP2 Client (Rust) | ✅ Complete | HTTP client with fallback |
 | Run Script | ✅ Complete | Starts all 3 services |
 | Frontend | ✅ Complete | Visualization + annotations |
-| Real ZKML | ⚙️ Feature-gated | Enable with `--features real-zkml` |
+| Real zkML | ⚙️ Feature-gated | Enable with `--features real-zkml` |
 | MediaPipe Browser | 📝 Documented | Can be added to frontend |

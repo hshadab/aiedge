@@ -1,4 +1,4 @@
-//! ZKML Prover - Real Jolt Atlas SNARK proofs
+//! zkML Prover - Real Jolt Atlas SNARK proofs
 //!
 //! Uses the Jolt SNARK system from jolt-atlas for real zero-knowledge proofs
 //! of ML model inference (spending classification).
@@ -14,7 +14,7 @@ use zkml_jolt_core::jolt::{JoltProverPreprocessing, JoltSNARK};
 
 type PCS = DoryCommitmentScheme;
 
-/// Real ZKML Prover using Jolt Atlas
+/// Real zkML Prover using Jolt Atlas
 pub struct ZkmlProver {
     model_path: PathBuf,
     preprocessing: Arc<JoltProverPreprocessing<Fr, PCS>>,
@@ -22,10 +22,10 @@ pub struct ZkmlProver {
 }
 
 impl ZkmlProver {
-    /// Initialize the ZKML prover with model preprocessing
+    /// Initialize the zkML prover with model preprocessing
     /// This is expensive (~30s) but only done once at startup
     pub async fn new() -> Self {
-        tracing::info!("Initializing REAL Jolt Atlas ZKML prover...");
+        tracing::info!("Initializing REAL Jolt Atlas zkML prover...");
 
         // Path to spending classifier model (relative to workspace root)
         let model_path = PathBuf::from("onnx-tracer/models/spending_classifier/network.onnx");
@@ -52,7 +52,7 @@ impl ZkmlProver {
         .await
         .expect("Preprocessing task failed");
 
-        tracing::info!("REAL ZKML prover initialized with Jolt Atlas!");
+        tracing::info!("REAL zkML prover initialized with Jolt Atlas!");
         tracing::info!("  Categories: {:?}", categories);
         tracing::info!("  Ready to generate SNARK proofs");
 
@@ -64,7 +64,8 @@ impl ZkmlProver {
     }
 
     /// Classify the function call and generate a REAL Jolt SNARK proof
-    pub async fn classify_and_prove(&self, call: &FunctionCall) -> (ClassificationResult, ProofBundle) {
+    /// Returns (classification, proof_bundle, proving_time_ms, verification_time_ms)
+    pub async fn classify_and_prove(&self, call: &FunctionCall) -> (ClassificationResult, ProofBundle, u128, u128) {
         let start = std::time::Instant::now();
 
         // Determine category using keyword-based classification (for demo accuracy)
@@ -96,7 +97,7 @@ impl ZkmlProver {
             }
             let verify_time = verify_start.elapsed();
 
-            tracing::info!("ZKML proof generated in {:?}, verified in {:?}", proving_time, verify_time);
+            tracing::info!("zkML proof generated in {:?}, verified in {:?}", proving_time, verify_time);
 
             // Serialize proof (simplified - real would use proper serialization)
             let proof_bytes = format!("JOLT_SNARK_PROOF_{}ms_verified_{}ms",
@@ -109,7 +110,7 @@ impl ZkmlProver {
         .expect("Proof generation failed");
 
         // Use keyword-based classification for demo accuracy
-        // The ZKML proof cryptographically proves the model inference was run correctly
+        // The zkML proof cryptographically proves the model inference was run correctly
         let mapped_category = keyword_category.clone();
         let confidence = match mapped_category.as_str() {
             "blocked" => 0.95,
@@ -138,10 +139,12 @@ impl ZkmlProver {
                 confidence,
             },
             proof_bundle,
+            proving_time.as_millis(),
+            verify_time.as_millis(),
         )
     }
 
-    /// Verify a ZKML proof
+    /// Verify a zkML proof
     pub async fn verify_proof(&self, proof: &ProofBundle) -> bool {
         let start = std::time::Instant::now();
 
