@@ -96,11 +96,13 @@ python3 scripts/build_spending_classifier.py
 cargo run --release --example agentic_spending_guardrails
 ```
 
+**Interactive Demo**: See [demos/ai-edge-ap2](demos/ai-edge-ap2) for a full web UI integrating Google AI Edge, zkML proofs, and Google AP2 payments.
+
 #### The Problem
 
 Enterprise AI agents (procurement bots, fleet robots, supply chain AI) need to autonomously purchase cloud resources, API credits, and vendor services. But how do you ensure they follow corporate spending policies without trusting the AI?
 
-#### The Solution: ZKML Spending Proofs
+#### The Solution: zkML Spending Proofs
 
 Every spending decision generates a cryptographic proof that:
 1. The intent was correctly classified by an approved ML model
@@ -112,7 +114,7 @@ Every spending decision generates a cryptographic proof that:
 │                    B2B AGENT SPENDING FLOW                       │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  On-Device LLM         ZKML Classifier        Policy Engine      │
+│  On-Device LLM         zkML Classifier        Policy Engine      │
 │  (Gemma/LiteRT)        (this demo)            (this demo)        │
 │  ───────────────       ────────────────       ──────────────     │
 │                                                                  │
