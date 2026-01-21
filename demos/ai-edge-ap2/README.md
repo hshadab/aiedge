@@ -1,15 +1,8 @@
 # AI Edge → AP2 Payment Demo
 
-> **Powered by [Jolt Atlas zkML](https://github.com/ICME-Lab/jolt-atlas)** — Real SNARK proofs for verifiable ML inference
+*Powered by [Jolt Atlas zkML](https://github.com/ICME-Lab/jolt-atlas)*
 
-**Real Zero-Knowledge Proofs for Autonomous Agent Spending**
-
-This demo shows how on-device AI agents can make autonomous purchases with cryptographic proof of correct behavior. The zkML proofs ensure that spending classifications are verifiable without re-running inference.
-
-### Key Technologies
-- **[Jolt Atlas zkML](https://github.com/ICME-Lab/jolt-atlas)** - Real SNARK proofs of ML inference (~5s prove, ~2s verify)
-- **[Google AI Edge](https://ai.google.dev/edge)** - Real MediaPipe text classifier for spending categorization (~1ms inference)
-- **[Google AP2](https://github.com/google-agentic-commerce/AP2)** - Real Google Agent Payments Protocol types
+Autonomous AI agents making purchases with cryptographic proof of correct behavior. This demo integrates Google AI Edge, zkML proofs, and Google AP2 payments to show how on-device AI can spend money while proving it followed enterprise policies.
 
 ## What's Real vs Simulated
 
